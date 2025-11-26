@@ -1,8 +1,10 @@
 {
-    "name": "prettier",
+    "name": "prettier-mono",
     "version": "1.0.0",
     "description": "",
-    "main": "index.js",
+    "keywords": [],
+    "author": "",
+    "license": "ISC",
     "type": "module",
     "private": true,
     "scripts": {
@@ -15,11 +17,12 @@
         "build": "bun scripts/build.mjs",
         "fg": "npm run format && git add . && git commit -m \"✨feature: format\"",
         "lint": "eslint .",
-        "prepare": "husky"
+        "prepare": "husky",
+        "check": "bun scripts/tsc.mjs"
     },
-    "keywords": [],
-    "author": "",
-    "license": "ISC",
+    "dependencies": {
+        "soda-nodejs": "^0.8.5"
+    },
     "devDependencies": {
         "@1adybug/prettier": "workspace:*",
         "@changesets/cli": "^2.29.7",
@@ -32,9 +35,6 @@
         "prettier": "^3.6.2",
         "typescript": "^5.9.3",
         "typescript-eslint": "^8.46.4"
-    },
-    "dependencies": {
-        "soda-nodejs": "^0.8.5"
     },
     "lint-staged": {
         "**/*": "prettier --write --ignore-unknown"

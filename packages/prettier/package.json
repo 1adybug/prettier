@@ -1,7 +1,7 @@
 {
     "name": "@1adybug/prettier",
-    "version": "0.0.3",
-    "description": "自用的 Prettier 配置",
+    "version": "0.0.4",
+    "description": "推荐的 Prettier 配置",
     "keywords": [
         "prettier",
         "plugin"
@@ -12,7 +12,7 @@
         "type": "git",
         "url": "git+https://github.com/1adybug/prettier.git"
     },
-    "homepage": "https://github.com/1adybug/prettier#readme",
+    "homepage": "https://github.com/1adybug/prettier/tree/main/packages/prettier",
     "bugs": {
         "url": "https://github.com/1adybug/prettier/issues"
     },
@@ -23,6 +23,7 @@
             "import": "./dist/index.js"
         }
     },
+    "main": "./dist/index.js",
     "types": "./dist/index.d.ts",
     "files": [
         "dist"
@@ -32,6 +33,10 @@
         "build": "rslib build",
         "dev": "rslib build --watch",
         "prepublishOnly": "npm run build"
+    },
+    "publishConfig": {
+        "access": "public",
+        "registry": "https://registry.npmjs.com/"
     },
     "dependencies": {
         "@1adybug/prettier-plugin-block-padding": "workspace:*",
@@ -47,9 +52,5 @@
     },
     "peerDependencies": {
         "prettier": "^3.0.0"
-    },
-    "publishConfig": {
-        "access": "public",
-        "registry": "https://registry.npmjs.com/"
     }
 }

@@ -1,11 +1,11 @@
 import { readFileSync } from "fs"
 import { builtinModules } from "module"
 
+import blockPadding from "@1adybug/prettier-plugin-block-padding"
 import removeBraces from "@1adybug/prettier-plugin-remove-braces"
 import { createPlugin } from "@1adybug/prettier-plugin-sort-imports"
 import JSON5 from "json5"
 import { Plugin } from "prettier"
-import blockPadding from "prettier-plugin-block-padding"
 import * as tailwindcss from "prettier-plugin-tailwindcss"
 
 const packageJson = JSON5.parse(readFileSync("package.json", "utf-8"))
@@ -41,7 +41,7 @@ try {
     pathAlias = Object.keys(tsConfig.compilerOptions?.paths ?? {})
         .map(item => item.match(/^((@|~).*\/)\*/))
         .filter(Boolean)
-        .map(item => item?.[1]!)
+        .map(item => item![1])
 } catch {}
 
 function isAbsolute(path: string) {

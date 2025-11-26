@@ -1,15 +1,7 @@
 {
     "name": "@1adybug/prettier-plugin-remove-braces",
-    "version": "0.0.3",
+    "version": "0.0.4",
     "description": "A Prettier plugin that removes unnecessary braces in JavaScript/TypeScript code",
-    "main": "dist/index.js",
-    "types": "dist/index.d.ts",
-    "scripts": {
-        "build": "tsc",
-        "dev": "tsc --watch",
-        "prepublishOnly": "npm run build",
-        "test": "node --test"
-    },
     "keywords": [
         "prettier",
         "plugin",
@@ -19,31 +11,47 @@
         "braces",
         "arrow-functions"
     ],
-    "author": "",
+    "author": "1adybug <lurongv@qq.com>",
     "license": "MIT",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/1adybug/prettier.git"
+    },
+    "homepage": "https://github.com/1adybug/prettier/tree/main/packages/prettier-plugin-remove-braces",
+    "bugs": {
+        "url": "https://github.com/1adybug/prettier/issues"
+    },
     "type": "module",
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.js",
+            "require": "./dist/index.js"
+        }
+    },
+    "main": "./dist/index.js",
+    "module": "./dist/index.js",
+    "types": "./dist/index.d.ts",
     "files": [
-        "dist/"
+        "dist"
     ],
+    "sideEffects": false,
+    "scripts": {
+        "build": "rslib build",
+        "dev": "rslib build --watch",
+        "prepublishOnly": "npm run build",
+        "test": "node --test"
+    },
     "publishConfig": {
         "access": "public",
         "registry": "https://registry.npmjs.com/"
     },
-    "repository": {
-        "type": "git",
-        "url": "git+https://github.com/1adybug/prettier-plugin-remove-braces.git"
-    },
-    "dependencies": {},
     "devDependencies": {
-        "@1adybug/prettier-plugin-sort-imports": "^0.0.16",
-        "@types/node": "^22.14.1",
-        "@types/prettier": "^2.7.2",
-        "json5": "^2.2.3",
-        "prettier": "^3.0.0",
-        "prettier-plugin-block-padding": "^0.0.9",
+        "@rslib/core": "^0.15.0",
+        "@types/node": "^24.7.2",
         "typescript": "^5.8.3"
     },
     "peerDependencies": {
-        "prettier": ">= 3"
+        "prettier": "^3.0.0"
     }
 }

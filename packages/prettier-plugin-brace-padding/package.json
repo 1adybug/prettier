@@ -1,27 +1,7 @@
 {
     "name": "@1adybug/prettier-plugin-block-padding",
-    "version": "0.0.10",
+    "version": "0.0.11",
     "description": "A Prettier plugin that intelligently adds blank lines around code blocks for better visual grouping",
-    "type": "module",
-    "exports": {
-        ".": {
-            "types": "./dist/index.d.ts",
-            "import": "./dist/index.js",
-            "require": "./dist/index.js"
-        }
-    },
-    "main": "./dist/index.js",
-    "module": "./dist/index.js",
-    "types": "./dist/index.d.ts",
-    "files": [
-        "dist"
-    ],
-    "scripts": {
-        "build": "rslib build",
-        "dev": "rslib build --watch",
-        "prepublishOnly": "npm run build",
-        "test:quick": "node ./scripts/quick-test.mjs"
-    },
     "keywords": [
         "prettier",
         "prettier-plugin",
@@ -37,21 +17,37 @@
     "license": "MIT",
     "repository": {
         "type": "git",
-        "url": "git+https://github.com/1adybug/prettier-plugin-block-padding.git"
+        "url": "git+https://github.com/1adybug/prettier.git"
     },
-    "homepage": "https://github.com/1adybug/prettier-plugin-block-padding#readme",
+    "homepage": "https://github.com/1adybug/prettier/tree/main/packages/prettier-plugin-brace-padding",
     "bugs": {
-        "url": "https://github.com/1adybug/prettier-plugin-block-padding/issues"
+        "url": "https://github.com/1adybug/prettier/issues"
     },
-    "engines": {
-        "node": ">=18.0.0"
+    "type": "module",
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.js",
+            "require": "./dist/index.js"
+        }
     },
+    "main": "./dist/index.js",
+    "module": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "files": [
+        "dist"
+    ],
     "sideEffects": false,
+    "scripts": {
+        "build": "rslib build",
+        "dev": "rslib build --watch",
+        "prepublishOnly": "npm run build",
+        "test:quick": "node ./scripts/quick-test.mjs"
+    },
     "publishConfig": {
         "access": "public",
         "registry": "https://registry.npmjs.com/"
     },
-    "dependencies": {},
     "devDependencies": {
         "@rslib/core": "^0.15.0",
         "@types/node": "^24.7.2",
