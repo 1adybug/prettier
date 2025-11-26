@@ -67,7 +67,7 @@ function compareGroupName(a: string, b: string) {
 }
 
 function getDir(path: string) {
-    return path.match(/^(((@|~)\/?|\.{1,2}\/)([^./]+))(\/|$)/)?.[1] ?? ""
+    return path.match(/^(((@|~)\/?|\.{1,2}\/)([^./]+))\//)?.[1] ?? ""
 }
 
 function getModuleType(path: string) {
