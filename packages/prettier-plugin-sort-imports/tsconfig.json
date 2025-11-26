@@ -1,0 +1,18 @@
+{
+    "compilerOptions": {
+        "lib": ["ES2022"],
+        "module": "ESNext",
+        "noEmit": true,
+        "strict": true,
+        "skipLibCheck": true,
+        "isolatedModules": true,
+        "resolveJsonModule": true,
+        "moduleResolution": "bundler",
+        "useDefineForClassFields": true,
+        "allowImportingTsExtensions": true,
+        "esModuleInterop": false,
+        "allowSyntheticDefaultImports": false
+    },
+    "include": ["src"],
+    "exclude": ["test", "node_modules", "dist"]
+}

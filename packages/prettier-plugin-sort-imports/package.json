@@ -1,0 +1,68 @@
+{
+    "name": "@1adybug/prettier-plugin-sort-imports",
+    "type": "module",
+    "version": "0.0.17",
+    "description": "一个 Prettier 插件，用于对 JavaScript/TypeScript 文件的导入语句进行分组和排序",
+    "keywords": [
+        "prettier",
+        "plugin",
+        "import",
+        "sort",
+        "organize",
+        "typescript",
+        "javascript"
+    ],
+    "author": "1adybug <lurongv@qq.com>",
+    "license": "MIT",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/1adybug/prettier-plugin-sort-imports.git"
+    },
+    "homepage": "https://github.com/1adybug/prettier-plugin-sort-imports#readme",
+    "bugs": {
+        "url": "https://github.com/1adybug/prettier-plugin-sort-imports/issues"
+    },
+    "sideEffects": false,
+    "publishConfig": {
+        "access": "public",
+        "registry": "https://registry.npmjs.com/"
+    },
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.js",
+            "require": "./dist/index.js"
+        }
+    },
+    "main": "./dist/index.js",
+    "module": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "files": [
+        "dist"
+    ],
+    "scripts": {
+        "build": "rslib build",
+        "dev": "rslib build --watch",
+        "prepublishOnly": "npm run build",
+        "test": "bun test",
+        "test:watch": "bun test --watch"
+    },
+    "devDependencies": {
+        "@rslib/core": "^0.15.0",
+        "@types/babel__core": "^7.20.5",
+        "@types/bun": "latest",
+        "@types/node": "^22.18.6",
+        "json5": "^2.2.3",
+        "supports-color": "^10.2.2",
+        "typescript": "^5.9.2"
+    },
+    "peerDependencies": {
+        "prettier": "^3.0.0"
+    },
+    "dependencies": {
+        "@babel/core": "^7.28.4",
+        "@babel/parser": "^7.28.4",
+        "@babel/traverse": "^7.28.4",
+        "@babel/types": "^7.28.4"
+    }
+}

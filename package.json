@@ -1,0 +1,42 @@
+{
+    "name": "prettier",
+    "version": "1.0.0",
+    "description": "",
+    "main": "index.js",
+    "type": "module",
+    "private": true,
+    "scripts": {
+        "dev": "bun scripts/dev.mjs",
+        "r": "pnpm i && pnpm publish -r",
+        "cs": "pnpm changeset && pnpm changeset version",
+        "format": "prettier --write .",
+        "sync": "bun scripts/syncPackage.mjs",
+        "postr": "npm run sync",
+        "build": "bun scripts/build.mjs",
+        "fg": "npm run format && git add . && git commit -m \"✨feature: format\"",
+        "lint": "eslint .",
+        "prepare": "husky"
+    },
+    "keywords": [],
+    "author": "",
+    "license": "ISC",
+    "devDependencies": {
+        "@1adybug/prettier": "workspace:*",
+        "@changesets/cli": "^2.29.7",
+        "@eslint/js": "^9.39.1",
+        "@types/node": "^24.10.1",
+        "eslint": "^9.39.1",
+        "globals": "^16.5.0",
+        "husky": "^9.1.7",
+        "lint-staged": "^16.2.7",
+        "prettier": "^3.6.2",
+        "typescript": "^5.9.3",
+        "typescript-eslint": "^8.46.4"
+    },
+    "dependencies": {
+        "soda-nodejs": "^0.8.5"
+    },
+    "lint-staged": {
+        "**/*": "prettier --write --ignore-unknown"
+    }
+}
