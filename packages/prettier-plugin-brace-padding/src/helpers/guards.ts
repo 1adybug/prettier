@@ -133,29 +133,19 @@ function isOtherBlockExpression(expr: NodeBase | undefined): boolean {
     if (!expr) return false
 
     // 模板字符串（包括普通模板和标签模板）
-    if (expr.type === "TemplateLiteral" || expr.type === "TaggedTemplateExpression") {
-        return true
-    }
+    if (expr.type === "TemplateLiteral" || expr.type === "TaggedTemplateExpression") return true
 
     // 函数表达式（箭头函数和普通函数）
-    if (expr.type === "ArrowFunctionExpression" || expr.type === "FunctionExpression") {
-        return true
-    }
+    if (expr.type === "ArrowFunctionExpression" || expr.type === "FunctionExpression") return true
 
     // 类表达式
-    if (expr.type === "ClassExpression") {
-        return true
-    }
+    if (expr.type === "ClassExpression") return true
 
     // JSX 元素和片段
-    if (expr.type === "JSXElement" || expr.type === "JSXFragment") {
-        return true
-    }
+    if (expr.type === "JSXElement" || expr.type === "JSXFragment") return true
 
     // 函数调用和 new 表达式（可能包含多行参数）
-    if (expr.type === "CallExpression" || expr.type === "NewExpression") {
-        return true
-    }
+    if (expr.type === "CallExpression" || expr.type === "NewExpression") return true
 
     return false
 }
@@ -172,9 +162,7 @@ export function hasTopLevelObjectOrArrayLiteral(node: NodeBase): boolean {
         for (const d of v.declarations || []) {
             const init = d && d.init
 
-            if (isObjectOrArrayLiteral(init)) {
-                return true
-            }
+            if (isObjectOrArrayLiteral(init)) return true
         }
 
         return false
@@ -199,9 +187,7 @@ export function hasOtherBlockExpression(node: NodeBase): boolean {
         for (const d of v.declarations || []) {
             const init = d && d.init
 
-            if (isOtherBlockExpression(init)) {
-                return true
-            }
+            if (isOtherBlockExpression(init)) return true
         }
 
         return false

@@ -15,19 +15,13 @@ function defaultSortGroup(a: Group, b: Group): number {
 /** 获取导入路径的类型 */
 function getImportType(path: string): ImportType {
     // 相对路径：以 ./ 或 ../ 开头
-    if (path.startsWith("./") || path.startsWith("../")) {
-        return "relative"
-    }
+    if (path.startsWith("./") || path.startsWith("../")) return "relative"
 
     // 常见的路径别名：@/, ~/, #/ 等
-    if (path.startsWith("@/") || path.startsWith("~/") || path.startsWith("#/")) {
-        return "alias"
-    }
+    if (path.startsWith("@/") || path.startsWith("~/") || path.startsWith("#/")) return "alias"
 
     // 绝对路径（很少见，但也归类为 alias）
-    if (path.startsWith("/")) {
-        return "alias"
-    }
+    if (path.startsWith("/")) return "alias"
 
     // 外部模块（从 node_modules 导入的第三方包）
     return "module"
@@ -54,9 +48,7 @@ function defaultSortImportStatement(a: ImportStatement, b: ImportStatement): num
     const bPriority = getImportTypePriority(bType)
 
     // 先按照类型优先级排序
-    if (aPriority !== bPriority) {
-        return aPriority - bPriority
-    }
+    if (aPriority !== bPriority) return aPriority - bPriority
 
     // 同类型的按照 path 的字母顺序排序
     return a.path.localeCompare(b.path)
@@ -65,13 +57,9 @@ function defaultSortImportStatement(a: ImportStatement, b: ImportStatement): num
 /** 默认的导入内容排序函数，type 类型在前，然后按照最终导入的内容名称的字母顺序排序 */
 function defaultSortImportContent(a: ImportContent, b: ImportContent): number {
     // type 类型优先
-    if (a.type === "type" && b.type !== "type") {
-        return -1
-    }
+    if (a.type === "type" && b.type !== "type") return -1
 
-    if (a.type !== "type" && b.type === "type") {
-        return 1
-    }
+    if (a.type !== "type" && b.type === "type") return 1
 
     // 按照最终导入的名称排序（如果有别名用别名，否则用原名称）
     const aName = a.alias ?? a.name
@@ -112,9 +100,7 @@ export function sortImports(imports: ImportStatement[], userConfig: PluginConfig
     const config = mergeConfig(userConfig)
 
     // 如果不对副作用导入进行排序，需要特殊处理
-    if (!config.sortSideEffect) {
-        return sortImportsWithSideEffectSeparators(imports, config)
-    }
+    if (!config.sortSideEffect) return sortImportsWithSideEffectSeparators(imports, config)
 
     // 对所有导入进行分组和排序
     const groups = groupImports(imports, config)
@@ -149,7 +135,7 @@ function sortImportsWithSideEffectSeparators(imports: ImportStatement[], config:
     let currentChunk: ImportStatement[] = []
 
     // 按照副作用导入分割成多个块
-    for (const statement of imports)
+    for (const statement of imports) {
         if (statement.isSideEffect) {
             if (currentChunk.length > 0) {
                 chunks.push(currentChunk)
@@ -157,13 +143,10 @@ function sortImportsWithSideEffectSeparators(imports: ImportStatement[], config:
             }
 
             chunks.push([statement])
-        } else {
-            currentChunk.push(statement)
-        }
-
-    if (currentChunk.length > 0) {
-        chunks.push(currentChunk)
+        } else currentChunk.push(statement)
     }
+
+    if (currentChunk.length > 0) chunks.push(currentChunk)
 
     // 对每个块进行排序
     for (const chunk of chunks) {
@@ -195,18 +178,18 @@ function sortImportsWithSideEffectSeparators(imports: ImportStatement[], config:
     return result
 }
 
-/** 对导入语句进行分组，同时根据 name 和 isSideEffect 区分 */
+/** 对导入语句进行分组，同时根据 name、isSideEffect 和 isExport 区分 */
 export function groupImports(imports: ImportStatement[], userConfig: PluginConfig): Group[] {
     const config = mergeConfig(userConfig)
 
-    // 使用 name + isSideEffect 作为组合键来区分不同的 Group
+    // 使用 name + isSideEffect + isExport 作为组合键来区分不同的 Group
     const groupMap = new Map<string, ImportStatement[]>()
 
     for (const statement of imports) {
         const groupName = config.getGroup(statement)
 
-        // 组合键：name|||isSideEffect
-        const key = `${groupName}|||${statement.isSideEffect}`
+        // 组合键：name|||isSideEffect|||isExport
+        const key = `${groupName}|||${statement.isSideEffect}|||${statement.isExport}`
 
         const statements = groupMap.get(key) ?? []
         statements.push(statement)
@@ -216,11 +199,13 @@ export function groupImports(imports: ImportStatement[], userConfig: PluginConfi
     const groups: Group[] = []
 
     for (const [key, statements] of Array.from(groupMap.entries())) {
-        // 从组合键中解析出 name 和 isSideEffect
-        const separatorIndex = key.lastIndexOf("|||")
+        // 从组合键中解析出 name、isSideEffect 和 isExport
+        const parts = key.split("|||")
 
-        const name = key.slice(0, separatorIndex)
-        const isSideEffect = key.slice(separatorIndex + 3) === "true"
+        const isExport = parts.pop() === "true"
+        const isSideEffect = parts.pop() === "true"
+
+        const name = parts.join("|||") // 如果 name 中包含 |||，也能正确处理
 
         // 从第一个 ImportStatement 中获取 filepath（同一个文件的所有 import 的 filepath 应该相同）
         const filepath = statements[0].filepath
@@ -229,6 +214,7 @@ export function groupImports(imports: ImportStatement[], userConfig: PluginConfi
             filepath,
             name,
             isSideEffect,
+            isExport,
             importStatements: statements,
         })
     }
@@ -253,9 +239,7 @@ export function sortImportContents(contents: ImportContent[], userConfig: Plugin
     const config = mergeConfig(userConfig)
 
     // 如果用户提供了自定义排序函数，完全使用用户的逻辑
-    if (userConfig.sortImportContent) {
-        return [...contents].sort(config.sortImportContent)
-    }
+    if (userConfig.sortImportContent) return [...contents].sort(config.sortImportContent)
 
     // 使用默认排序：默认导入和命名空间导入在最前面，type 在前
     const defaultImport = contents.filter(c => c.name === "default")
@@ -292,9 +276,8 @@ export function mergeImports(imports: ImportStatement[]): ImportStatement[] {
         const key = `${statement.path}|||${statement.isExport}`
         const existing = mergedMap.get(key)
 
-        if (!existing) {
-            mergedMap.set(key, { ...statement })
-        } else {
+        if (!existing) mergedMap.set(key, { ...statement })
+        else {
             // 合并导入内容
             const mergedContents = [...existing.importContents]
 
@@ -302,17 +285,12 @@ export function mergeImports(imports: ImportStatement[]): ImportStatement[] {
                 // 检查是否已经存在相同的导入
                 const existingContent = mergedContents.find(c => c.name === content.name && c.alias === content.alias)
 
-                if (!existingContent) {
-                    mergedContents.push(content)
-                } else {
+                if (!existingContent) mergedContents.push(content)
+                else {
                     // 如果已存在，合并注释
-                    if (content.leadingComments) {
-                        existingContent.leadingComments = [...(existingContent.leadingComments ?? []), ...content.leadingComments]
-                    }
+                    if (content.leadingComments) existingContent.leadingComments = [...(existingContent.leadingComments ?? []), ...content.leadingComments]
 
-                    if (content.trailingComments) {
-                        existingContent.trailingComments = [...(existingContent.trailingComments ?? []), ...content.trailingComments]
-                    }
+                    if (content.trailingComments) existingContent.trailingComments = [...(existingContent.trailingComments ?? []), ...content.trailingComments]
                 }
             }
 

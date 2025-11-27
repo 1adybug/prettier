@@ -48,6 +48,8 @@ export interface Group {
     name: string
     /** 是否是副作用分组，默认为 false */
     isSideEffect: boolean
+    /** 是否是导出分组，默认为 false */
+    isExport: boolean
     /** 分组对应的导入语句列表 */
     importStatements: ImportStatement[]
 }

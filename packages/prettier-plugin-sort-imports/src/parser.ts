@@ -10,9 +10,7 @@ export function parseImports(code: string, filepath?: string): ImportStatement[]
     // 如果没有，直接返回空数组，避免 attachComment 导致的问题
     const hasImportOrExport = /^\s*(import|export)\s/m.test(code)
 
-    if (!hasImportOrExport) {
-        return []
-    }
+    if (!hasImportOrExport) return []
 
     const ast = parse(code, {
         sourceType: "module",
@@ -36,10 +34,8 @@ export function parseImports(code: string, filepath?: string): ImportStatement[]
             const statement = parseImportNode(node, ast.comments ?? [], usedComments, code, isFirstImport, filepath)
             importStatements.push(statement)
             isFirstImport = false
-        } else {
-            // 遇到非导入/导出语句，停止处理
-            break
-        }
+        } else break
+        // 遇到非导入/导出语句，停止处理
     }
 
     return importStatements
@@ -54,12 +50,10 @@ function parseImportNode(
     isFirstImport: boolean,
     filepath?: string,
 ): ImportStatement {
-    const isExport = node.type !== "ImportDeclaration"
     const source = node.source?.value ?? ""
 
     // 获取节点所在的行号和位置
     const nodeStartLine = node.loc?.start.line ?? 0
-    const nodeEndLine = node.loc?.end.line ?? 0
     const nodeStart = node.start ?? 0
     let nodeEnd = node.end ?? 0
 
@@ -91,17 +85,14 @@ function parseImportNode(
                     continue
                 }
 
-                if (comment.type === "CommentLine") {
-                    leadingComments.push(`//${comment.value}`)
-                } else if (comment.type === "CommentBlock") {
-                    leadingComments.push(`/*${comment.value}*/`)
+                if (comment.type === "CommentLine") leadingComments.push(`//${comment.value}`)
+                else {
+                    if (comment.type === "CommentBlock") leadingComments.push(`/*${comment.value}*/`)
                 }
 
                 const commentStart = comment.start ?? 0
 
-                if (commentStart < start) {
-                    start = commentStart
-                }
+                if (commentStart < start) start = commentStart
 
                 lastCommentEndLine = commentEndLine
 
@@ -110,9 +101,7 @@ function parseImportNode(
         }
 
         // 计算最后一个前导注释和 import 语句之间的空行数
-        if (leadingComments.length > 0 && lastCommentEndLine > 0) {
-            emptyLinesAfterComments = nodeStartLine - lastCommentEndLine - 1
-        }
+        if (leadingComments.length > 0 && lastCommentEndLine > 0) emptyLinesAfterComments = nodeStartLine - lastCommentEndLine - 1
     }
 
     // 处理行尾注释
@@ -126,17 +115,14 @@ function parseImportNode(
                 const isSameLine = commentLoc && nodeLoc && commentLoc.start.line === nodeLoc.end.line
 
                 if (isSameLine) {
-                    if (comment.type === "CommentLine") {
-                        trailingComments.push(`//${comment.value}`)
-                    } else if (comment.type === "CommentBlock") {
-                        trailingComments.push(`/*${comment.value}*/`)
+                    if (comment.type === "CommentLine") trailingComments.push(`//${comment.value}`)
+                    else {
+                        if (comment.type === "CommentBlock") trailingComments.push(`/*${comment.value}*/`)
                     }
 
                     const commentEnd = comment.end ?? 0
 
-                    if (commentEnd > nodeEnd) {
-                        nodeEnd = commentEnd
-                    }
+                    if (commentEnd > nodeEnd) nodeEnd = commentEnd
 
                     usedComments.add(comment)
                 }
@@ -214,10 +200,9 @@ function parseImportSpecifiers(node: ImportDeclaration, isTypeOnlyImport: boolea
         // 处理前导注释
         if (specifier.leadingComments) {
             for (const comment of specifier.leadingComments) {
-                if (comment.type === "CommentLine") {
-                    leadingComments.push(`//${comment.value}`)
-                } else if (comment.type === "CommentBlock") {
-                    leadingComments.push(`/*${comment.value}*/`)
+                if (comment.type === "CommentLine") leadingComments.push(`//${comment.value}`)
+                else {
+                    if (comment.type === "CommentBlock") leadingComments.push(`/*${comment.value}*/`)
                 }
             }
         }
@@ -225,10 +210,9 @@ function parseImportSpecifiers(node: ImportDeclaration, isTypeOnlyImport: boolea
         // 处理行尾注释
         if (specifier.trailingComments) {
             for (const comment of specifier.trailingComments) {
-                if (comment.type === "CommentLine") {
-                    trailingComments.push(`//${comment.value}`)
-                } else if (comment.type === "CommentBlock") {
-                    trailingComments.push(`/*${comment.value}*/`)
+                if (comment.type === "CommentLine") trailingComments.push(`//${comment.value}`)
+                else {
+                    if (comment.type === "CommentBlock") trailingComments.push(`/*${comment.value}*/`)
                 }
             }
         }
@@ -242,28 +226,32 @@ function parseImportSpecifiers(node: ImportDeclaration, isTypeOnlyImport: boolea
                 leadingComments: leadingComments.length > 0 ? leadingComments : undefined,
                 trailingComments: trailingComments.length > 0 ? trailingComments : undefined,
             })
-        } else if (specifier.type === "ImportNamespaceSpecifier") {
-            // 命名空间导入
-            contents.push({
-                name: "*",
-                alias: specifier.local.name,
-                type: isTypeOnlyImport ? "type" : "variable",
-                leadingComments: leadingComments.length > 0 ? leadingComments : undefined,
-                trailingComments: trailingComments.length > 0 ? trailingComments : undefined,
-            })
-        } else if (specifier.type === "ImportSpecifier") {
-            // 命名导入
-            const importedName = specifier.imported.type === "Identifier" ? specifier.imported.name : (specifier.imported as any).value
-            const localName = specifier.local.name
-            const isTypeImport = isTypeOnlyImport || specifier.importKind === "type"
+        } else {
+            if (specifier.type === "ImportNamespaceSpecifier") {
+                // 命名空间导入
+                contents.push({
+                    name: "*",
+                    alias: specifier.local.name,
+                    type: isTypeOnlyImport ? "type" : "variable",
+                    leadingComments: leadingComments.length > 0 ? leadingComments : undefined,
+                    trailingComments: trailingComments.length > 0 ? trailingComments : undefined,
+                })
+            } else {
+                if (specifier.type === "ImportSpecifier") {
+                    // 命名导入
+                    const importedName = specifier.imported.type === "Identifier" ? specifier.imported.name : (specifier.imported as any).value
+                    const localName = specifier.local.name
+                    const isTypeImport = isTypeOnlyImport || specifier.importKind === "type"
 
-            contents.push({
-                name: importedName,
-                alias: importedName !== localName ? localName : undefined,
-                type: isTypeImport ? "type" : "variable",
-                leadingComments: leadingComments.length > 0 ? leadingComments : undefined,
-                trailingComments: trailingComments.length > 0 ? trailingComments : undefined,
-            })
+                    contents.push({
+                        name: importedName,
+                        alias: importedName !== localName ? localName : undefined,
+                        type: isTypeImport ? "type" : "variable",
+                        leadingComments: leadingComments.length > 0 ? leadingComments : undefined,
+                        trailingComments: trailingComments.length > 0 ? trailingComments : undefined,
+                    })
+                }
+            }
         }
     }
 
@@ -274,9 +262,7 @@ function parseImportSpecifiers(node: ImportDeclaration, isTypeOnlyImport: boolea
 function parseExportSpecifiers(node: ExportNamedDeclaration, isTypeOnlyExport: boolean = false): ImportContent[] {
     const contents: ImportContent[] = []
 
-    if (!node.specifiers) {
-        return contents
-    }
+    if (!node.specifiers) return contents
 
     for (const specifier of node.specifiers) {
         if (specifier.type === "ExportSpecifier") {
@@ -288,10 +274,9 @@ function parseExportSpecifiers(node: ExportNamedDeclaration, isTypeOnlyExport: b
             // 处理前导注释
             if (specifier.leadingComments) {
                 for (const comment of specifier.leadingComments) {
-                    if (comment.type === "CommentLine") {
-                        leadingComments.push(`//${comment.value}`)
-                    } else if (comment.type === "CommentBlock") {
-                        leadingComments.push(`/*${comment.value}*/`)
+                    if (comment.type === "CommentLine") leadingComments.push(`//${comment.value}`)
+                    else {
+                        if (comment.type === "CommentBlock") leadingComments.push(`/*${comment.value}*/`)
                     }
                 }
             }
@@ -299,10 +284,9 @@ function parseExportSpecifiers(node: ExportNamedDeclaration, isTypeOnlyExport: b
             // 处理行尾注释
             if (specifier.trailingComments) {
                 for (const comment of specifier.trailingComments) {
-                    if (comment.type === "CommentLine") {
-                        trailingComments.push(`//${comment.value}`)
-                    } else if (comment.type === "CommentBlock") {
-                        trailingComments.push(`/*${comment.value}*/`)
+                    if (comment.type === "CommentLine") trailingComments.push(`//${comment.value}`)
+                    else {
+                        if (comment.type === "CommentBlock") trailingComments.push(`/*${comment.value}*/`)
                     }
                 }
             }

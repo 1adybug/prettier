@@ -69,14 +69,10 @@ function getOriginalEmptyLinesBetween(prevNode: NodeBase, currNode: NodeBase): n
     if (comments && comments.length > 0) {
         const firstCommentLine = comments[0]?.loc?.start?.line
 
-        if (typeof firstCommentLine === "number") {
-            currStartLine = firstCommentLine
-        }
+        if (typeof firstCommentLine === "number") currStartLine = firstCommentLine
     }
 
-    if (typeof prevEndLine !== "number" || typeof currStartLine !== "number") {
-        return 0
-    }
+    if (typeof prevEndLine !== "number" || typeof currStartLine !== "number") return 0
 
     // 行差减 1 就是空行数（例如：第 2 行结束，第 4 行开始，中间有 1 个空行）
     const emptyLines = currStartLine - prevEndLine - 1
@@ -110,9 +106,7 @@ export function printStatementSequence(path: PrettierPathLike, print: PrintFn): 
             let requiredEmptyLines = needPad || (prev && prev.needPad) ? 1 : 0
 
             // 特殊处理：类属性和类方法之间应该添加空行（用于分隔不同类型的成员）
-            if ((isClassProperty(body[i - 1]) && isClassMethod(body[i])) || (isClassMethod(body[i - 1]) && isClassProperty(body[i]))) {
-                requiredEmptyLines = 1
-            }
+            if ((isClassProperty(body[i - 1]) && isClassMethod(body[i])) || (isClassMethod(body[i - 1]) && isClassProperty(body[i]))) requiredEmptyLines = 1
 
             // 取两者的最大值，保留原有空行的同时满足插件规则
             // 但限制最多 1 个空行，与 prettier 默认行为保持一致

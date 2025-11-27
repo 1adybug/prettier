@@ -167,7 +167,7 @@ if (condition) {
 
 ```javascript
 // Before
-if (condition) {
+if (condition0) {
     if (condition1) doSomething()
 }
 
@@ -176,12 +176,76 @@ if (condition) {
 }
 
 // After
-if (condition) {
+if (condition0) {
     if (condition1) doSomething()
 }
 
 if (condition) {
     for (let i = 0; i < 10; i++) console.log(i)
+}
+```
+
+### `multipleLineBraces` (choice, default: "default")
+
+Control how braces are handled when a single statement spans multiple lines.
+
+#### Options
+
+- **"default"** - Keep original formatting - don't add or remove braces around multiple line statements
+- **"remove"** - Remove braces around single multiple line statements when possible
+- **"add"** - Add braces around multiple line statements that don't have them
+
+#### Examples
+
+**"default" mode:**
+
+```javascript
+// This will be preserved as-is
+if (condition) {
+    doSomething({
+        a: 1,
+        b: 2,
+    })
+}
+```
+
+**"remove" mode:**
+
+```javascript
+// Before
+if (condition) {
+    doSomething({
+        a: 1,
+        b: 2,
+    })
+}
+
+// After
+if (condition) {
+    doSomething({
+        a: 1,
+        b: 2,
+    })
+}
+```
+
+**"add" mode:**
+
+```javascript
+// Before
+if (condition) {
+    doSomething({
+        a: 1,
+        b: 2,
+    })
+}
+
+// After
+if (condition) {
+    doSomething({
+        a: 1,
+        b: 2,
+    })
 }
 ```
 

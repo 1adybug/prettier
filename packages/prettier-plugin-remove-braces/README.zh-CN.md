@@ -167,7 +167,7 @@ if (condition) {
 
 ```javascript
 // 格式化前
-if (condition) {
+if (condition0) {
     if (condition1) doSomething()
 }
 
@@ -176,12 +176,76 @@ if (condition) {
 }
 
 // 格式化后
-if (condition) {
+if (condition0) {
     if (condition1) doSomething()
 }
 
 if (condition) {
     for (let i = 0; i < 10; i++) console.log(i)
+}
+```
+
+### `multipleLineBraces` (选择类型, 默认: "default")
+
+控制当单个语句跨多行时大括号的处理方式。
+
+#### 选项
+
+- **"default"** - 保持原始格式 - 不添加或移除多行语句周围的大括号
+- **"remove"** - 尽可能移除单个多行语句周围的大括号
+- **"add"** - 为没有大括号的多行语句添加大括号
+
+#### 示例
+
+**"default" 模式：**
+
+```javascript
+// 将保持原样
+if (condition) {
+    doSomething({
+        a: 1,
+        b: 2,
+    })
+}
+```
+
+**"remove" 模式：**
+
+```javascript
+// 格式化前
+if (condition) {
+    doSomething({
+        a: 1,
+        b: 2,
+    })
+}
+
+// 格式化后
+if (condition) {
+    doSomething({
+        a: 1,
+        b: 2,
+    })
+}
+```
+
+**"add" 模式：**
+
+```javascript
+// 格式化前
+if (condition) {
+    doSomething({
+        a: 1,
+        b: 2,
+    })
+}
+
+// 格式化后
+if (condition) {
+    doSomething({
+        a: 1,
+        b: 2,
+    })
 }
 ```
 

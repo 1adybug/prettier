@@ -230,29 +230,19 @@ export default createPlugin({
         const path = statement.path
 
         // React 及相关库
-        if (path.startsWith("react") || path.startsWith("@react")) {
-            return "react"
-        }
+        if (path.startsWith("react") || path.startsWith("@react")) return "react"
 
         // UI 库
-        if (path.includes("antd") || path.includes("@mui") || path.includes("chakra")) {
-            return "ui"
-        }
+        if (path.includes("antd") || path.includes("@mui") || path.includes("chakra")) return "ui"
 
         // 工具库
-        if (path.includes("lodash") || path.includes("ramda") || path.includes("date-fns")) {
-            return "utils"
-        }
+        if (path.includes("lodash") || path.includes("ramda") || path.includes("date-fns")) return "utils"
 
         // 外部包 (node_modules)
-        if (!path.startsWith(".") && !path.startsWith("@/")) {
-            return "external"
-        }
+        if (!path.startsWith(".") && !path.startsWith("@/")) return "external"
 
         // 内部别名 (@/)
-        if (path.startsWith("@/")) {
-            return "internal"
-        }
+        if (path.startsWith("@/")) return "internal"
 
         // 相对导入
         return "relative"
@@ -268,9 +258,7 @@ export default createPlugin({
     // 自定义导入内容排序
     sortImportContent: (a, b) => {
         // 类型在前，变量在后
-        if (a.type !== b.type) {
-            return a.type === "type" ? -1 : 1
-        }
+        if (a.type !== b.type) return a.type === "type" ? -1 : 1
 
         // 同类型内按字母顺序
         const aName = a.alias ?? a.name

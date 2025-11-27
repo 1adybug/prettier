@@ -4,7 +4,7 @@ import { join, parse, resolve } from "path"
 
 import blockPadding from "@1adybug/prettier-plugin-block-padding"
 import removeBraces from "@1adybug/prettier-plugin-remove-braces"
-import { createPlugin } from "@1adybug/prettier-plugin-sort-imports"
+import { createPlugin, PluginConfig } from "@1adybug/prettier-plugin-sort-imports"
 import { Plugin } from "prettier"
 import * as tailwindcss from "prettier-plugin-tailwindcss"
 import { createMatchPath, loadConfig } from "tsconfig-paths"
@@ -102,7 +102,7 @@ function getResolvedPathDir(resolvedPath: string) {
     return resolvedPath
 }
 
-export const plugin = createPlugin({
+export const config: PluginConfig = {
     getGroup({ path, filepath }) {
         if (filepath) resolveAlias ??= getResolveAlias(filepath)
         const type = getModuleType(path)
@@ -118,11 +118,13 @@ export const plugin = createPlugin({
         return JSON.stringify(info)
     },
     sortGroup(a, b) {
-        return Number(a.isSideEffect) - Number(b.isSideEffect) || compareGroupName(a.name, b.name)
+        return Number(a.isExport) - Number(b.isExport) || Number(a.isSideEffect) - Number(b.isSideEffect) || compareGroupName(a.name, b.name)
     },
     separator: "",
     sortSideEffect: true,
     otherPlugins,
-})
+}
+
+export const plugin = createPlugin(config)
 
 export default plugin

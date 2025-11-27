@@ -234,29 +234,19 @@ export default createPlugin({
         const path = statement.path
 
         // React and related libraries
-        if (path.startsWith("react") || path.startsWith("@react")) {
-            return "react"
-        }
+        if (path.startsWith("react") || path.startsWith("@react")) return "react"
 
         // UI libraries
-        if (path.includes("antd") || path.includes("@mui") || path.includes("chakra")) {
-            return "ui"
-        }
+        if (path.includes("antd") || path.includes("@mui") || path.includes("chakra")) return "ui"
 
         // Utility libraries
-        if (path.includes("lodash") || path.includes("ramda") || path.includes("date-fns")) {
-            return "utils"
-        }
+        if (path.includes("lodash") || path.includes("ramda") || path.includes("date-fns")) return "utils"
 
         // External packages (node_modules)
-        if (!path.startsWith(".") && !path.startsWith("@/")) {
-            return "external"
-        }
+        if (!path.startsWith(".") && !path.startsWith("@/")) return "external"
 
         // Internal aliases (@/)
-        if (path.startsWith("@/")) {
-            return "internal"
-        }
+        if (path.startsWith("@/")) return "internal"
 
         // Relative imports
         return "relative"
@@ -272,9 +262,7 @@ export default createPlugin({
     // Custom import content sorting
     sortImportContent: (a, b) => {
         // Types first, then variables
-        if (a.type !== b.type) {
-            return a.type === "type" ? -1 : 1
-        }
+        if (a.type !== b.type) return a.type === "type" ? -1 : 1
 
         // Alphabetical order within same type
         const aName = a.alias ?? a.name

@@ -1,5 +1,15 @@
 # @1adybug/prettier
 
+## 0.0.9
+
+### Patch Changes
+
+- 新增 multipleLineBraces 选项，修复其他问题
+- Updated dependencies
+    - @1adybug/prettier-plugin-block-padding@0.0.12
+    - @1adybug/prettier-plugin-remove-braces@0.0.6
+    - @1adybug/prettier-plugin-sort-imports@0.0.20
+
 ## 0.0.8
 
 ### Patch Changes

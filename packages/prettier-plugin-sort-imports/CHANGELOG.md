@@ -1,5 +1,11 @@
 # @1adybug/prettier-plugin-sort-imports
 
+## 0.0.20
+
+### Patch Changes
+
+- 新增 multipleLineBraces 选项，修复其他问题
+
 ## 0.0.19
 
 ### Patch Changes

@@ -25,9 +25,7 @@ function preprocessImports(text: string, options: ParserOptions & Partial<Plugin
 
         const supportedParsers = ["babel", "typescript", "babel-ts"]
 
-        if (!parser || !supportedParsers.includes(parser as string)) {
-            return text
-        }
+        if (!parser || !supportedParsers.includes(parser as string)) return text
 
         // 获取相对文件路径
         const absoluteFilepath = options.filepath
@@ -37,9 +35,7 @@ function preprocessImports(text: string, options: ParserOptions & Partial<Plugin
         // 解析导入语句
         const imports = parseImports(text, relativeFilepath)
 
-        if (imports.length === 0) {
-            return text
-        }
+        if (imports.length === 0) return text
 
         // 构建配置（优先级：config > options > defaults）
         const optionsConfig = options as any
@@ -78,10 +74,9 @@ function preprocessImports(text: string, options: ParserOptions & Partial<Plugin
             const groups = groupImports(mergedImports, finalConfig)
             const sortedGroups = sortGroups(groups, finalConfig)
             formattedImports = formatGroups(sortedGroups, finalConfig)
-        } else {
+        } else
             // 否则直接格式化
             formattedImports = formatImportStatements(mergedImports)
-        }
 
         // 获取导入块的起始和结束位置
         const firstImport = imports[0]
@@ -126,9 +121,7 @@ function createCombinedPreprocess(parserName: string, config: PluginConfig) {
     return function combinedPreprocess(text: string, options: any): string {
         const otherPlugins = config.otherPlugins || []
 
-        if (otherPlugins.length === 0) {
-            return preprocessImports(text, options, config)
-        }
+        if (otherPlugins.length === 0) return preprocessImports(text, options, config)
 
         // 获取合并后的配置选项
         const prettierOptions = config.prettierOptions || {}
@@ -145,21 +138,20 @@ function createCombinedPreprocess(parserName: string, config: PluginConfig) {
         for (const plugin of otherPlugins) {
             const parser = plugin?.parsers?.[parserName]
 
-            if (parser?.preprocess && typeof parser.preprocess === "function") {
-                preprocessFunctions.push(parser.preprocess)
-            }
+            if (parser?.preprocess && typeof parser.preprocess === "function") preprocessFunctions.push(parser.preprocess)
         }
 
         // 执行链式调用
         let processedText = text
 
-        for (const preprocess of preprocessFunctions)
+        for (const preprocess of preprocessFunctions) {
             try {
                 // 使用合并后的配置调用其他插件
                 processedText = preprocess(processedText, mergedOptions)
             } catch (error) {
                 console.warn("Plugin preprocess failed:", error instanceof Error ? error.message : String(error))
             }
+        }
 
         return processedText
     }
@@ -193,18 +185,16 @@ function createPluginInstance(config: PluginConfig = {}): Plugin {
 
     const mergedOptions = { ...baseOptions }
 
-    for (const plugin of otherPlugins)
-        if (plugin?.options) {
-            Object.assign(mergedOptions, plugin.options)
-        }
+    for (const plugin of otherPlugins) {
+        if (plugin?.options) Object.assign(mergedOptions, plugin.options)
+    }
 
     // 合并其他插件的 printers
     const mergedPrinters: Record<string, any> = {}
 
-    for (const plugin of otherPlugins)
-        if (plugin?.printers) {
-            Object.assign(mergedPrinters, plugin.printers)
-        }
+    for (const plugin of otherPlugins) {
+        if (plugin?.printers) Object.assign(mergedPrinters, plugin.printers)
+    }
 
     // 合并其他插件的 parsers（合并所有 parser 属性，不只是 preprocess）
     const mergedParsers: Record<string, any> = {}
@@ -242,9 +232,7 @@ function createPluginInstance(config: PluginConfig = {}): Plugin {
     }
 
     // 只有在有 printers 时才添加
-    if (Object.keys(mergedPrinters).length > 0) {
-        result.printers = mergedPrinters
-    }
+    if (Object.keys(mergedPrinters).length > 0) result.printers = mergedPrinters
 
     return result
 }
