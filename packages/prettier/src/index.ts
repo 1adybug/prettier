@@ -1,5 +1,5 @@
 import { existsSync, statSync } from "fs"
-import { builtinModules } from "module"
+import { builtinModules, createRequire } from "module"
 import { join, parse, resolve } from "path"
 
 import blockPadding from "@1adybug/prettier-plugin-block-padding"
@@ -8,6 +8,8 @@ import { createPlugin } from "@1adybug/prettier-plugin-sort-imports"
 import { Plugin } from "prettier"
 import * as tailwindcss from "prettier-plugin-tailwindcss"
 import { createMatchPath, loadConfig } from "tsconfig-paths"
+
+const require = createRequire(import.meta.url)
 
 const extensions = [".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs"]
 
@@ -36,9 +38,9 @@ function getResolveAlias(filepath: string) {
     }
 }
 
-async function hasDependency(dependency: string) {
+function hasDependency(dependency: string) {
     try {
-        await import(dependency)
+        require.resolve(dependency)
         return true
     } catch (error) {
         return false
@@ -83,7 +85,7 @@ function getModuleType(path: string) {
     return "third-party"
 }
 
-const hasTailwindcss = await hasDependency("tailwindcss")
+const hasTailwindcss = hasDependency("tailwindcss")
 
 const otherPlugins: Plugin[] = hasTailwindcss ? [blockPadding, tailwindcss, removeBraces] : [blockPadding, removeBraces]
 

@@ -1,5 +1,11 @@
 # @1adybug/prettier
 
+## 0.0.8
+
+### Patch Changes
+
+- 使用 require.resolve 代替 await import
+
 ## 0.0.7
 
 ### Patch Changes
