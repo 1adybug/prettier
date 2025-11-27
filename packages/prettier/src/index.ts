@@ -1,11 +1,10 @@
-import { existsSync, readFileSync, statSync } from "fs"
+import { existsSync, statSync } from "fs"
 import { builtinModules } from "module"
 import { join, parse, resolve } from "path"
 
 import blockPadding from "@1adybug/prettier-plugin-block-padding"
 import removeBraces from "@1adybug/prettier-plugin-remove-braces"
 import { createPlugin } from "@1adybug/prettier-plugin-sort-imports"
-import JSON5 from "json5"
 import { Plugin } from "prettier"
 import * as tailwindcss from "prettier-plugin-tailwindcss"
 import { createMatchPath, loadConfig } from "tsconfig-paths"
@@ -37,20 +36,13 @@ function getResolveAlias(filepath: string) {
     }
 }
 
-const packageJson = JSON5.parse(readFileSync("package.json", "utf-8"))
-
-function hasDependency(dependency: string | RegExp) {
-    const dependencies = packageJson.dependencies ?? {}
-    const devDependencies = packageJson.devDependencies ?? {}
-    const peerDependencies = packageJson.peerDependencies ?? {}
-
-    const total = Object.keys({
-        ...dependencies,
-        ...devDependencies,
-        ...peerDependencies,
-    })
-
-    return total.some(item => (typeof dependency === "string" ? item === dependency : dependency.test(item)))
+async function hasDependency(dependency: string) {
+    try {
+        await import(dependency)
+        return true
+    } catch (error) {
+        return false
+    }
 }
 
 function isReact(path: string) {
@@ -91,7 +83,7 @@ function getModuleType(path: string) {
     return "third-party"
 }
 
-const hasTailwindcss = hasDependency("tailwindcss")
+const hasTailwindcss = await hasDependency("tailwindcss")
 
 const otherPlugins: Plugin[] = hasTailwindcss ? [blockPadding, tailwindcss, removeBraces] : [blockPadding, removeBraces]
 

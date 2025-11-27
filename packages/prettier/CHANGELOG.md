@@ -1,5 +1,11 @@
 # @1adybug/prettier
 
+## 0.0.7
+
+### Patch Changes
+
+- 修复 VSCode Prettier 插件启动目录与命令行不一致的问题
+
 ## 0.0.6
 
 ### Patch Changes
