@@ -44,8 +44,9 @@ npx prettier --write "src/**/*.{js,ts,jsx,tsx}"
 ### Basic Sorting
 
 ```typescript
-import { Button } from "antd"
 import React, { useEffect, useState } from "react"
+
+import { Button } from "antd"
 
 import { sum } from "./utils"
 
@@ -83,9 +84,10 @@ export default {
 Result:
 
 ```typescript
+import React, { useState } from "react"
+
 import { Button } from "antd"
 import { format } from "date-fns"
-import React, { useState } from "react"
 
 import { Header } from "./components/Header"
 
@@ -485,10 +487,11 @@ import { c } from "c-module"
 Comments follow the import statements they are attached to:
 
 ```typescript
-// UI components
-import { Button } from "antd"
 // React related imports
 import React from "react"
+
+// UI components
+import { Button } from "antd"
 
 // Utilities
 import { sum } from "./utils"

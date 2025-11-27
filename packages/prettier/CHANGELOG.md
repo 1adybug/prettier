@@ -1,5 +1,14 @@
 # @1adybug/prettier
 
+## 0.0.6
+
+### Patch Changes
+
+- 修复一些问题
+- Updated dependencies
+    - @1adybug/prettier-plugin-remove-braces@0.0.5
+    - @1adybug/prettier-plugin-sort-imports@0.0.19
+
 ## 0.0.5
 
 ### Patch Changes

@@ -60,15 +60,22 @@ if (shouldCreate) {
 
 // Examples with removeControlStatementBraces: true
 // These nested control statements will have their outer braces removed
-if (condition0) if (condition1) doSomething()
+if (condition0) {
+    if (condition1) doSomething()
+}
 
-if (shouldProcess) for (let i = 0; i < 10; i++) console.log(i)
+if (shouldProcess) {
+    for (let i = 0; i < 10; i++) console.log(i)
+}
 
-if (shouldLoop) while (flag) process()
+if (shouldLoop) {
+    while (flag) process()
+}
 
-if (shouldTry)
+if (shouldTry) {
     try {
         riskyOperation()
     } catch (error) {
         handleError(error)
     }
+}

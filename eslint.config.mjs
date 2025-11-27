@@ -19,6 +19,7 @@ export default defineConfig([
             "no-empty": "off",
             "no-extra-boolean-cast": "off",
             "no-unused-vars": "off",
+            "@typescript-eslint/no-explicit-any": "off",
             "@typescript-eslint/no-unused-vars": [
                 "warn",
                 {

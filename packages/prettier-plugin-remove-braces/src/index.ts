@@ -167,7 +167,9 @@ function transformAST(ast: any, options: { controlStatementBraces?: "default" | 
     // Recursively transform all child nodes
     for (const key in ast)
         if (Array.isArray(ast[key])) ast[key] = ast[key].map(item => transformAST(item, options))
-        else if (ast[key] && typeof ast[key] === "object" && key !== "loc" && key !== "range" && key !== "tokens") ast[key] = transformAST(ast[key], options)
+        else {
+            if (ast[key] && typeof ast[key] === "object" && key !== "loc" && key !== "range" && key !== "tokens") ast[key] = transformAST(ast[key], options)
+        }
 
     return ast
 }

@@ -1,5 +1,6 @@
-import { readFileSync } from "fs"
+import { existsSync, readFileSync, statSync } from "fs"
 import { builtinModules } from "module"
+import { join, parse, resolve } from "path"
 
 import blockPadding from "@1adybug/prettier-plugin-block-padding"
 import removeBraces from "@1adybug/prettier-plugin-remove-braces"
@@ -7,6 +8,34 @@ import { createPlugin } from "@1adybug/prettier-plugin-sort-imports"
 import JSON5 from "json5"
 import { Plugin } from "prettier"
 import * as tailwindcss from "prettier-plugin-tailwindcss"
+import { createMatchPath, loadConfig } from "tsconfig-paths"
+
+const extensions = [".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs"]
+
+function getResolveAlias(filepath: string) {
+    try {
+        filepath = resolve(filepath)
+        let tsconfigPath: string
+
+        while (true) {
+            const { root, dir } = parse(filepath)
+            tsconfigPath = join(dir, "tsconfig.json")
+            if (existsSync(tsconfigPath)) break
+            if (dir === root) break
+            filepath = dir
+        }
+
+        if (!tsconfigPath) return undefined
+        const tsconfig = loadConfig(tsconfigPath)
+        if (tsconfig.resultType === "failed") return undefined
+        const matchPath = createMatchPath(tsconfig.absoluteBaseUrl, tsconfig.paths)
+        return function resolveAlias(importPath: string) {
+            return matchPath!(importPath, undefined, undefined, extensions)
+        }
+    } catch (error) {
+        return undefined
+    }
+}
 
 const packageJson = JSON5.parse(readFileSync("package.json", "utf-8"))
 
@@ -24,28 +53,16 @@ function hasDependency(dependency: string | RegExp) {
     return total.some(item => (typeof dependency === "string" ? item === dependency : dependency.test(item)))
 }
 
-const hasReact = hasDependency("react")
-
 function isReact(path: string) {
-    return hasReact && /^@?react\b/.test(path)
+    return /^(npm:)?react(-dom|-native)?(\/|$)/.test(path)
 }
 
 function isBuiltin(path: string) {
     return path.startsWith("node:") || builtinModules.includes(path)
 }
 
-let pathAlias: string[] = []
-
-try {
-    const tsConfig = JSON5.parse(readFileSync("tsconfig.json", "utf-8"))
-    pathAlias = Object.keys(tsConfig.compilerOptions?.paths ?? {})
-        .map(item => item.match(/^((@|~).*\/)\*/))
-        .filter(Boolean)
-        .map(item => item![1])
-} catch {}
-
 function isAbsolute(path: string) {
-    return pathAlias.some(item => path.startsWith(item))
+    return !!resolveAlias?.(path)
 }
 
 function isRelative(path: string) {
@@ -66,10 +83,6 @@ function compareGroupName(a: string, b: string) {
     return orders.indexOf(aInfo.type) - orders.indexOf(bInfo.type) || aInfo.dir.localeCompare(bInfo.dir)
 }
 
-function getDir(path: string) {
-    return path.match(/^(((@|~)\/?|\.{1,2}\/)([^./]+))\//)?.[1] ?? ""
-}
-
 function getModuleType(path: string) {
     if (isReact(path)) return "react"
     if (isBuiltin(path)) return "builtin"
@@ -82,13 +95,30 @@ const hasTailwindcss = hasDependency("tailwindcss")
 
 const otherPlugins: Plugin[] = hasTailwindcss ? [blockPadding, tailwindcss, removeBraces] : [blockPadding, removeBraces]
 
+let resolveAlias: ((importPath: string) => string | undefined) | undefined
+
+function getResolvedPathDir(resolvedPath: string) {
+    if (existsSync(resolvedPath) && statSync(resolvedPath).isFile()) return parse(resolvedPath).dir
+
+    for (const extension of extensions) {
+        const importPath = resolvedPath + extension
+        if (existsSync(importPath)) return parse(importPath).dir
+    }
+
+    return resolvedPath
+}
+
 export const plugin = createPlugin({
-    getGroup({ path }) {
+    getGroup({ path, filepath }) {
+        if (filepath) resolveAlias ??= getResolveAlias(filepath)
         const type = getModuleType(path)
+        let dir = ""
+        if (type === "absolute") dir = getResolvedPathDir(resolveAlias!(path)!)
+        if (type === "relative" && !!filepath) dir = getResolvedPathDir(resolve(filepath, path))
 
         const info: GroupPathInfo = {
             type,
-            dir: type === "absolute" || type === "relative" ? getDir(path) : "",
+            dir,
         }
 
         return JSON.stringify(info)

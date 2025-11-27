@@ -43,8 +43,9 @@ npx prettier --write "src/**/*.{js,ts,jsx,tsx}"
 ### 基本排序
 
 ```typescript
-import { Button } from "antd"
 import React, { useEffect, useState } from "react"
+
+import { Button } from "antd"
 
 import { sum } from "./utils"
 
@@ -82,9 +83,10 @@ export default {
 结果：
 
 ```typescript
+import React, { useState } from "react"
+
 import { Button } from "antd"
 import { format } from "date-fns"
-import React, { useState } from "react"
 
 import { Header } from "./components/Header"
 
@@ -481,10 +483,11 @@ import { c } from "c-module"
 注释会跟随它们所附加的导入语句一起移动：
 
 ```typescript
-// UI 组件
-import { Button } from "antd"
 // React 相关导入
 import React from "react"
+
+// UI 组件
+import { Button } from "antd"
 
 // 工具函数
 import { sum } from "./utils"

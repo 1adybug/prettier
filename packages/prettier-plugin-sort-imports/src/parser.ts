@@ -5,7 +5,7 @@ import { ImportContent, ImportStatement } from "./types"
 
 /** 解析导入语句 */
 
-export function parseImports(code: string): ImportStatement[] {
+export function parseImports(code: string, filepath?: string): ImportStatement[] {
     // 首先快速检查是否有导入/导出语句
     // 如果没有，直接返回空数组，避免 attachComment 导致的问题
     const hasImportOrExport = /^\s*(import|export)\s/m.test(code)
@@ -33,7 +33,7 @@ export function parseImports(code: string): ImportStatement[] {
 
     for (const node of body) {
         if (node.type === "ImportDeclaration" || (node.type === "ExportNamedDeclaration" && node.source) || node.type === "ExportAllDeclaration") {
-            const statement = parseImportNode(node, ast.comments ?? [], usedComments, code, isFirstImport)
+            const statement = parseImportNode(node, ast.comments ?? [], usedComments, code, isFirstImport, filepath)
             importStatements.push(statement)
             isFirstImport = false
         } else {
@@ -52,6 +52,7 @@ function parseImportNode(
     usedComments: Set<Comment>,
     code: string,
     isFirstImport: boolean,
+    filepath?: string,
 ): ImportStatement {
     const isExport = node.type !== "ImportDeclaration"
     const source = node.source?.value ?? ""
@@ -153,6 +154,7 @@ function parseImportNode(
         const isSideEffect = importContents.length === 0
 
         return {
+            filepath,
             path: source,
             isExport: false,
             isSideEffect,
@@ -168,6 +170,7 @@ function parseImportNode(
     // 处理 export * from 语句
     if (node.type === "ExportAllDeclaration") {
         return {
+            filepath,
             path: source,
             isExport: true,
             isSideEffect: true, // export * from 应该被视为副作用导出
@@ -185,6 +188,7 @@ function parseImportNode(
     const importContents = parseExportSpecifiers(node, isTypeOnlyExport)
 
     return {
+        filepath,
         path: source,
         isExport: true,
         isSideEffect: false,

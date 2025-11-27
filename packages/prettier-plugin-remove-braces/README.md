@@ -145,28 +145,44 @@ Control how braces are handled around single control statements (if, for, while,
 
 ```javascript
 // Before
-if (condition0) if (condition1) doSomething()
+if (condition0) {
+    if (condition1) doSomething()
+}
 
-if (condition) for (let i = 0; i < 10; i++) console.log(i)
+if (condition) {
+    for (let i = 0; i < 10; i++) console.log(i)
+}
 
 // After
-if (condition0) if (condition1) doSomething()
+if (condition0) {
+    if (condition1) doSomething()
+}
 
-if (condition) for (let i = 0; i < 10; i++) console.log(i)
+if (condition) {
+    for (let i = 0; i < 10; i++) console.log(i)
+}
 ```
 
 **"add" mode:**
 
 ```javascript
 // Before
-if (condition) if (condition1) doSomething()
+if (condition) {
+    if (condition1) doSomething()
+}
 
-if (condition) for (let i = 0; i < 10; i++) console.log(i)
+if (condition) {
+    for (let i = 0; i < 10; i++) console.log(i)
+}
 
 // After
-if (condition) if (condition1) doSomething()
+if (condition) {
+    if (condition1) doSomething()
+}
 
-if (condition) for (let i = 0; i < 10; i++) console.log(i)
+if (condition) {
+    for (let i = 0; i < 10; i++) console.log(i)
+}
 ```
 
 **Safety Rules Still Apply:**

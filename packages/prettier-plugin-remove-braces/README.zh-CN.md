@@ -145,28 +145,44 @@ if (a) {
 
 ```javascript
 // 格式化前
-if (condition0) if (condition1) doSomething()
+if (condition0) {
+    if (condition1) doSomething()
+}
 
-if (condition) for (let i = 0; i < 10; i++) console.log(i)
+if (condition) {
+    for (let i = 0; i < 10; i++) console.log(i)
+}
 
 // 格式化后
-if (condition0) if (condition1) doSomething()
+if (condition0) {
+    if (condition1) doSomething()
+}
 
-if (condition) for (let i = 0; i < 10; i++) console.log(i)
+if (condition) {
+    for (let i = 0; i < 10; i++) console.log(i)
+}
 ```
 
 **"add" 模式：**
 
 ```javascript
 // 格式化前
-if (condition) if (condition1) doSomething()
+if (condition) {
+    if (condition1) doSomething()
+}
 
-if (condition) for (let i = 0; i < 10; i++) console.log(i)
+if (condition) {
+    for (let i = 0; i < 10; i++) console.log(i)
+}
 
 // 格式化后
-if (condition) if (condition1) doSomething()
+if (condition) {
+    if (condition1) doSomething()
+}
 
-if (condition) for (let i = 0; i < 10; i++) console.log(i)
+if (condition) {
+    for (let i = 0; i < 10; i++) console.log(i)
+}
 ```
 
 **安全规则依然适用：**

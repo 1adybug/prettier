@@ -222,7 +222,11 @@ export function groupImports(imports: ImportStatement[], userConfig: PluginConfi
         const name = key.slice(0, separatorIndex)
         const isSideEffect = key.slice(separatorIndex + 3) === "true"
 
+        // 从第一个 ImportStatement 中获取 filepath（同一个文件的所有 import 的 filepath 应该相同）
+        const filepath = statements[0].filepath
+
         groups.push({
+            filepath,
             name,
             isSideEffect,
             importStatements: statements,
