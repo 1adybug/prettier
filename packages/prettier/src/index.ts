@@ -108,7 +108,7 @@ export const config: PluginConfig = {
         const type = getModuleType(path)
         let dir = ""
         if (type === "absolute") dir = getResolvedPathDir(resolveAlias!(path)!)
-        if (type === "relative" && !!filepath) dir = getResolvedPathDir(resolve(filepath, path))
+        if (type === "relative" && !!filepath) dir = getResolvedPathDir(resolve(filepath, "../", path))
 
         const info: GroupPathInfo = {
             type,

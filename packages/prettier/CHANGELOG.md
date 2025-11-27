@@ -1,5 +1,11 @@
 # @1adybug/prettier
 
+## 0.0.10
+
+### Patch Changes
+
+- 修复相对路径的解析问题
+
 ## 0.0.9
 
 ### Patch Changes
