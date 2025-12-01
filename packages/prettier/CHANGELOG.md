@@ -1,5 +1,11 @@
 # @1adybug/prettier
 
+## 0.0.11
+
+### Patch Changes
+
+- 修复非 js 文件的引入问题
+
 ## 0.0.10
 
 ### Patch Changes

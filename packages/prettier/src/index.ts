@@ -1,4 +1,4 @@
-import { existsSync, statSync } from "fs"
+import { existsSync, readdirSync, statSync } from "fs"
 import { builtinModules, createRequire } from "module"
 import { join, parse, resolve } from "path"
 
@@ -10,8 +10,6 @@ import * as tailwindcss from "prettier-plugin-tailwindcss"
 import { createMatchPath, loadConfig } from "tsconfig-paths"
 
 const require = createRequire(import.meta.url)
-
-const extensions = [".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs"]
 
 function getResolveAlias(filepath: string) {
     try {
@@ -31,7 +29,8 @@ function getResolveAlias(filepath: string) {
         if (tsconfig.resultType === "failed") return undefined
         const matchPath = createMatchPath(tsconfig.absoluteBaseUrl, tsconfig.paths)
         return function resolveAlias(importPath: string) {
-            return matchPath!(importPath, undefined, undefined, extensions)
+            importPath = importPath.replace(/^(.+?)\?.*$/, "$1")
+            return matchPath!(importPath)
         }
     } catch (error) {
         return undefined
@@ -94,9 +93,11 @@ let resolveAlias: ((importPath: string) => string | undefined) | undefined
 function getResolvedPathDir(resolvedPath: string) {
     if (existsSync(resolvedPath) && statSync(resolvedPath).isFile()) return parse(resolvedPath).dir
 
-    for (const extension of extensions) {
-        const importPath = resolvedPath + extension
-        if (existsSync(importPath)) return parse(importPath).dir
+    const { dir, base } = parse(resolvedPath)
+    const list = readdirSync(dir)
+
+    for (const item of list) {
+        if (item.startsWith(`${base}.`) && statSync(join(dir, item)).isFile()) return dir
     }
 
     return resolvedPath
