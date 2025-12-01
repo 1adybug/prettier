@@ -1,5 +1,11 @@
 # @1adybug/prettier
 
+## 0.0.12
+
+### Patch Changes
+
+- 修复移除扩展名之后的适配问题
+
 ## 0.0.11
 
 ### Patch Changes

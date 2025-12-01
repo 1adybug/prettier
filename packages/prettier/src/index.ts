@@ -11,6 +11,20 @@ import { createMatchPath, loadConfig } from "tsconfig-paths"
 
 const require = createRequire(import.meta.url)
 
+// 检查文件是否存在，支持任意扩展名
+function fileExistsWithAnyExtension(path: string): boolean {
+    // 如果路径已经存在（精确匹配或目录），返回 true
+    if (existsSync(path)) return true
+
+    // 检查是否存在任何扩展名的文件
+    const { dir, base } = parse(path)
+
+    if (!existsSync(dir)) return false
+
+    const list = readdirSync(dir)
+    return list.some(item => item.startsWith(`${base}.`))
+}
+
 function getResolveAlias(filepath: string) {
     try {
         filepath = resolve(filepath)
@@ -30,7 +44,8 @@ function getResolveAlias(filepath: string) {
         const matchPath = createMatchPath(tsconfig.absoluteBaseUrl, tsconfig.paths)
         return function resolveAlias(importPath: string) {
             importPath = importPath.replace(/^(.+?)\?.*$/, "$1")
-            return matchPath!(importPath)
+            // 使用自定义的 fileExists 函数来支持任意扩展名
+            return matchPath!(importPath, undefined, fileExistsWithAnyExtension, undefined)
         }
     } catch (error) {
         return undefined
