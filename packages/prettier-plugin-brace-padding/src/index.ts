@@ -1,7 +1,6 @@
-import { type Doc, AstPath, doc, ParserOptions, Plugin as PrettierPlugin, Printer } from "prettier"
-import * as babelPlugin from "prettier/plugins/babel"
 import * as estreePlugin from "prettier/plugins/estree"
-import * as typescriptPlugin from "prettier/plugins/typescript"
+
+import { type Doc, AstPath, doc, ParserOptions, Plugin as PrettierPlugin, Printer } from "prettier"
 
 import { printStatementSequence } from "./helpers/sequence"
 
@@ -121,12 +120,6 @@ function createPatchedEstreePrinter(base: Printer): Printer {
     return { ...base, print, willPrintOwnComments }
 }
 
-// 复用官方 parser，并保持命名（babel、babel-ts、typescript）
-const parsers = {
-    ...(babelPlugin as unknown as PrettierPlugin).parsers,
-    ...(typescriptPlugin as unknown as PrettierPlugin).parsers,
-}
-
 // 基于 estree 打印机，覆写 Program/BlockStatement 的打印
 const baseEstree = (estreePlugin as unknown as PrettierPlugin).printers?.estree as any
 
@@ -134,9 +127,10 @@ const printers = {
     estree: createPatchedEstreePrinter(baseEstree),
 }
 
+// 注意：不导出 parsers，只导出 printers
+// 这样可以避免覆盖其他插件的 parsers（如 removeBraces、tailwindcss 等）
 const plugin: PrettierPlugin = {
     printers,
-    parsers,
 }
 
 export default plugin

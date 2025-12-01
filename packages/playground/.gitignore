@@ -1,0 +1,28 @@
+# Local
+.DS_Store
+*.local
+*.log*
+
+# Dist
+node_modules
+dist/
+
+# Profile
+.rspack-profile-*/
+
+# IDE
+.vscode/*
+!.vscode/extensions.json
+.idea
+
+package-lock.json
+pnpm-lock.yaml
+bun.lockb
+bun.lock
+dist*
+build
+yarn.lock
+yarn-error.log
+.yarnrc.yml
+.yarn
+test*

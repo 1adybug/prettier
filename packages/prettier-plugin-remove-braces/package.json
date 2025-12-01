@@ -1,6 +1,6 @@
 {
     "name": "@1adybug/prettier-plugin-remove-braces",
-    "version": "0.0.6",
+    "version": "0.0.7",
     "description": "A Prettier plugin that removes unnecessary braces in JavaScript/TypeScript code",
     "keywords": [
         "prettier",
@@ -52,6 +52,6 @@
         "typescript": "^5.8.3"
     },
     "peerDependencies": {
-        "prettier": "^3.0.0"
+        "prettier": "^3.7.3"
     }
 }

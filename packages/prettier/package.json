@@ -1,6 +1,6 @@
 {
     "name": "@1adybug/prettier",
-    "version": "0.0.12",
+    "version": "0.0.13",
     "description": "推荐的 Prettier 配置",
     "keywords": [
         "prettier",
@@ -53,6 +53,6 @@
         "typescript": "^5.9.3"
     },
     "peerDependencies": {
-        "prettier": "^3.0.0"
+        "prettier": "^3.7.3"
     }
 }

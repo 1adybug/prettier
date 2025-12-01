@@ -1,5 +1,15 @@
 # @1adybug/prettier
 
+## 0.0.13
+
+### Patch Changes
+
+- 修复与 tailwindcss 插件的兼容性问题
+- Updated dependencies
+    - @1adybug/prettier-plugin-block-padding@0.0.13
+    - @1adybug/prettier-plugin-remove-braces@0.0.7
+    - @1adybug/prettier-plugin-sort-imports@0.0.21
+
 ## 0.0.12
 
 ### Patch Changes

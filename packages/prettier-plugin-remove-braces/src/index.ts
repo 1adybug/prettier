@@ -1,6 +1,6 @@
 import { createRequire } from "module"
 
-import { ParserOptions, Plugin, SupportLanguage } from "prettier"
+import { format, ParserOptions, Plugin, SupportLanguage } from "prettier"
 
 const require = createRequire(import.meta.url)
 
@@ -321,8 +321,67 @@ function transformAST(ast: any, options: TransformASTOptions = {}): any {
     return ast
 }
 
+// 用于标识当前插件，避免在查找其他插件时重复处理自己
+const PLUGIN_ID = Symbol.for("prettier-plugin-remove-braces")
+
+// 用于检测递归调用的标记
+const PROCESSING_MARKER = Symbol.for("prettier-plugin-remove-braces-processing")
+
+// 创建带有 __transformAST 属性的 parser
+// __transformAST 用于支持多插件链式调用，它会在 AST 解析后被调用
+function createParserWithTransform(parserName: "typescript" | "babel") {
+    const modulePath = parserName === "typescript" ? "prettier/plugins/typescript" : "prettier/plugins/babel"
+    const originalParser = require(modulePath).parsers[parserName]
+
+    return {
+        ...originalParser,
+        // 添加 __transformAST 属性，用于链式调用
+        // 当使用 prettier-plugin-sort-imports 时，会自动收集并链式调用这个函数
+        __transformAST: (ast: any, options: PluginOptions) => transformAST(ast, options),
+        // 保留 parse 函数以支持独立使用
+        async parse(text: string, options: PluginOptions) {
+            let processedText = text
+            const plugins = (options as any).plugins || []
+
+            // 检测递归调用，避免无限循环
+            if (!(options as any)[PROCESSING_MARKER]) {
+                // 查找需要 preprocess 的其他插件（如 tailwindcss）
+                const pluginsWithPreprocess = plugins.filter((p: any) => {
+                    // 跳过自己
+                    if (p?.__pluginId === PLUGIN_ID) return false
+
+                    const otherParser = p?.parsers?.[parserName]
+                    return otherParser?.preprocess && typeof otherParser.preprocess === "function"
+                })
+
+                // 如果有其他需要 preprocess 的插件，使用 prettier.format 来触发它们
+                // 因为某些插件（如 tailwindcss）的 preprocess 需要 prettier 的完整环境才能工作
+                if (pluginsWithPreprocess.length > 0) {
+                    try {
+                        processedText = await format(text, {
+                            ...options,
+                            plugins: pluginsWithPreprocess,
+                            [PROCESSING_MARKER]: true,
+                        })
+                    } catch (error) {
+                        console.warn(`[prettier-plugin-remove-braces] Failed to apply other plugins:`, error instanceof Error ? error.message : String(error))
+                    }
+                }
+            }
+
+            // 使用原始 parser 解析处理后的代码
+            const ast = originalParser.parse(processedText, options)
+
+            // 转换 AST
+            return transformAST(ast, options)
+        },
+    }
+}
+
 // Create the plugin
 export const plugin: Plugin = {
+    // 用于标识当前插件，避免在查找其他插件时重复处理自己
+    __pluginId: PLUGIN_ID,
     languages: [
         {
             name: "typescript",
@@ -336,26 +395,8 @@ export const plugin: Plugin = {
         },
     ] as SupportLanguage[],
     parsers: {
-        typescript: {
-            ...require("prettier/plugins/typescript").parsers.typescript,
-            parse(text: string, options: PluginOptions) {
-                const originalParser = require("prettier/plugins/typescript").parsers.typescript
-                const ast = originalParser.parse(text, options)
-
-                // Always transform when this plugin is enabled
-                return transformAST(ast, options)
-            },
-        },
-        babel: {
-            ...require("prettier/plugins/babel").parsers.babel,
-            parse(text: string, options: PluginOptions) {
-                const originalParser = require("prettier/plugins/babel").parsers.babel
-                const ast = originalParser.parse(text, options)
-
-                // Always transform when this plugin is enabled
-                return transformAST(ast, options)
-            },
-        },
+        typescript: createParserWithTransform("typescript"),
+        babel: createParserWithTransform("babel"),
     },
     printers: {
         "typescript-estree": {

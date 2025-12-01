@@ -1,5 +1,11 @@
 # @1adybug/prettier-plugin-remove-braces
 
+## 0.0.7
+
+### Patch Changes
+
+- 修复与 tailwindcss 插件的兼容性问题
+
 ## 0.0.6
 
 ### Patch Changes

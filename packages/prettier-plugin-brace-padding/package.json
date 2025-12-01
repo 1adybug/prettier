@@ -1,6 +1,6 @@
 {
     "name": "@1adybug/prettier-plugin-block-padding",
-    "version": "0.0.12",
+    "version": "0.0.13",
     "description": "A Prettier plugin that intelligently adds blank lines around code blocks for better visual grouping",
     "keywords": [
         "prettier",
@@ -54,6 +54,6 @@
         "typescript": "^5.8.3"
     },
     "peerDependencies": {
-        "prettier": "^3.0.0"
+        "prettier": "^3.7.3"
     }
 }

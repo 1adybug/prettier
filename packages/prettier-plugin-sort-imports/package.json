@@ -1,6 +1,6 @@
 {
     "name": "@1adybug/prettier-plugin-sort-imports",
-    "version": "0.0.20",
+    "version": "0.0.21",
     "description": "一个 Prettier 插件，用于对 JavaScript/TypeScript 文件的导入语句进行分组和排序",
     "keywords": [
         "prettier",
@@ -63,6 +63,6 @@
         "typescript": "^5.9.2"
     },
     "peerDependencies": {
-        "prettier": "^3.0.0"
+        "prettier": "^3.7.3"
     }
 }

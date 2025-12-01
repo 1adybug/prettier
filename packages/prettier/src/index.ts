@@ -5,9 +5,10 @@ import { join, parse, resolve } from "path"
 import blockPadding from "@1adybug/prettier-plugin-block-padding"
 import removeBraces from "@1adybug/prettier-plugin-remove-braces"
 import { createPlugin, PluginConfig } from "@1adybug/prettier-plugin-sort-imports"
-import { Plugin } from "prettier"
 import * as tailwindcss from "prettier-plugin-tailwindcss"
 import { createMatchPath, loadConfig } from "tsconfig-paths"
+
+import { Plugin } from "prettier"
 
 const require = createRequire(import.meta.url)
 
@@ -52,15 +53,6 @@ function getResolveAlias(filepath: string) {
     }
 }
 
-function hasDependency(dependency: string) {
-    try {
-        require.resolve(dependency)
-        return true
-    } catch (error) {
-        return false
-    }
-}
-
 function isReact(path: string) {
     return /^(npm:)?react(-dom|-native)?(\/|$)/.test(path)
 }
@@ -99,9 +91,8 @@ function getModuleType(path: string) {
     return "third-party"
 }
 
-const hasTailwindcss = hasDependency("tailwindcss")
-
-const otherPlugins: Plugin[] = hasTailwindcss ? [blockPadding, tailwindcss, removeBraces] : [blockPadding, removeBraces]
+// prettier-plugin-tailwindcss 已经是本包的依赖，无需检查
+const otherPlugins: Plugin[] = [blockPadding, tailwindcss, removeBraces]
 
 let resolveAlias: ((importPath: string) => string | undefined) | undefined
 

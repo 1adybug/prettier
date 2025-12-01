@@ -1,5 +1,11 @@
 # @1adybug/prettier-plugin-sort-imports
 
+## 0.0.21
+
+### Patch Changes
+
+- 修复与 tailwindcss 插件的兼容性问题
+
 ## 0.0.20
 
 ### Patch Changes

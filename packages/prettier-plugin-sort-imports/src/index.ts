@@ -1,16 +1,12 @@
 import { createRequire } from "module"
 import { relative } from "path"
 
-import { ParserOptions, Plugin } from "prettier"
+import { format, ParserOptions, Plugin } from "prettier"
 
 import { removeUnusedImportsFromStatements } from "./analyzer"
-
 import { formatGroups, formatImportStatements } from "./formatter"
-
 import { parseImports } from "./parser"
-
 import { groupImports, mergeImports, sortGroups, sortImports } from "./sorter"
-
 import type { PluginConfig } from "./types"
 
 export * from "./types"
@@ -116,41 +112,42 @@ const {
     parsers: { "babel-ts": babelTs },
 } = require("prettier/parser-babel")
 
+// 用于检测递归调用的标记
+const PROCESSING_MARKER = Symbol("prettier-plugin-sort-imports-processing")
+
 /** 创建合并后的 preprocess 函数 */
 function createCombinedPreprocess(parserName: string, config: PluginConfig) {
-    return function combinedPreprocess(text: string, options: any): string {
-        const otherPlugins = config.otherPlugins || []
+    // 收集需要 preprocess 的插件（如 tailwindcss）
+    const otherPlugins = config.otherPlugins || []
 
-        if (otherPlugins.length === 0) return preprocessImports(text, options, config)
+    const pluginsWithPreprocess = otherPlugins.filter(plugin => {
+        const parser = plugin?.parsers?.[parserName]
+        return parser?.preprocess && typeof parser.preprocess === "function"
+    })
 
-        // 获取合并后的配置选项
-        const prettierOptions = config.prettierOptions || {}
+    return async function combinedPreprocess(text: string, options: any): Promise<string> {
+        // 检测递归调用，避免无限循环
+        if ((options as any)[PROCESSING_MARKER]) return text
 
-        const mergedOptions = { ...options, ...prettierOptions }
+        // 先执行我们的 import 排序
+        let processedText = preprocessImports(text, options, config)
 
-        // 收集所有插件的 preprocess 函数
-        const preprocessFunctions: Array<(text: string, options: any) => string> = []
+        // 如果没有其他需要 preprocess 的插件，直接返回
+        if (pluginsWithPreprocess.length === 0) return processedText
 
-        // 我们的 import 排序作为第一步（先排序导入）
-        preprocessFunctions.push((text: string, options: any) => preprocessImports(text, options, config))
-
-        // 然后按传入顺序获取其他插件的 preprocess（如 Tailwind）
-        for (const plugin of otherPlugins) {
-            const parser = plugin?.parsers?.[parserName]
-
-            if (parser?.preprocess && typeof parser.preprocess === "function") preprocessFunctions.push(parser.preprocess)
-        }
-
-        // 执行链式调用
-        let processedText = text
-
-        for (const preprocess of preprocessFunctions) {
-            try {
-                // 使用合并后的配置调用其他插件
-                processedText = preprocess(processedText, mergedOptions)
-            } catch (error) {
-                console.warn("Plugin preprocess failed:", error instanceof Error ? error.message : String(error))
-            }
+        // 对于需要 preprocess 的插件（如 tailwindcss），
+        // 使用 prettier.format 来触发它们的 preprocess
+        // 因为 tailwindcss 的 preprocess 需要 prettier 的完整环境才能工作
+        try {
+            processedText = await format(processedText, {
+                ...options,
+                // 只使用需要 preprocess 的插件
+                plugins: pluginsWithPreprocess,
+                // 标记正在处理中，避免递归
+                [PROCESSING_MARKER]: true,
+            })
+        } catch (error) {
+            console.warn("Failed to apply other plugins preprocess:", error instanceof Error ? error.message : String(error))
         }
 
         return processedText
@@ -209,15 +206,42 @@ function createPluginInstance(config: PluginConfig = {}): Plugin {
 
         let merged = { ...baseParser }
 
+        // 收集所有插件的 __transformAST 函数
+        const transformASTFunctions: Array<(ast: any, options: any) => any> = []
+
         // 合并其他插件对该 parser 的修改
         for (const plugin of otherPlugins) {
-            const otherParser = plugin?.parsers?.[parserName]
+            const otherParser = plugin?.parsers?.[parserName] as any
 
             if (otherParser) {
+                // 收集 __transformAST 函数用于链式调用
+                if (typeof otherParser.__transformAST === "function") transformASTFunctions.push(otherParser.__transformAST)
+
                 // 保留其他插件的所有属性（parse, astFormat, print, etc.）
-                // 但 preprocess 由我们统一管理
-                const { preprocess, ...otherAttrs } = otherParser
+                // 但 preprocess 由我们统一管理，parse 和 __transformAST 也需要特殊处理
+                const { preprocess, parse, __transformAST, ...otherAttrs } = otherParser
                 merged = { ...merged, ...otherAttrs }
+            }
+        }
+
+        // 如果有 __transformAST 函数，创建链式调用的 parse 函数
+        if (transformASTFunctions.length > 0) {
+            const originalParse = baseParser.parse
+
+            merged.parse = function chainedParse(text: string, options: any) {
+                // 先调用原始 parse 获取 AST
+                let ast = originalParse(text, options)
+
+                // 然后依次调用所有插件的 __transformAST
+                for (const transformAST of transformASTFunctions) {
+                    try {
+                        ast = transformAST(ast, options)
+                    } catch (error) {
+                        console.warn("Plugin transformAST failed:", error instanceof Error ? error.message : String(error))
+                    }
+                }
+
+                return ast
             }
         }
 

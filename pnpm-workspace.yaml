@@ -4,3 +4,4 @@ packages:
 
 catalog:
     "@types/node": "^24.10.1"
+    "prettier": "^3.7.3"

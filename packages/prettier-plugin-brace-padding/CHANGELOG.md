@@ -1,5 +1,11 @@
 # @1adybug/prettier-plugin-block-padding
 
+## 0.0.13
+
+### Patch Changes
+
+- 修复与 tailwindcss 插件的兼容性问题
+
 ## 0.0.12
 
 ### Patch Changes
