@@ -5,8 +5,7 @@ import { ExportNamedDeclaration, Identifier, JSXIdentifier, JSXMemberExpression,
 import { ImportContent, ImportStatement } from "./types"
 
 // 处理 ESM/CommonJS 兼容性
-// @ts-ignore
-const traverse = typeof traverseModule === "function" ? traverseModule : traverseModule.default
+const traverse = typeof traverseModule === "function" ? traverseModule : (traverseModule as { default: typeof traverseModule }).default
 
 /** 分析代码中使用的标识符 */
 export function analyzeUsedIdentifiers(code: string): Set<string> | null {

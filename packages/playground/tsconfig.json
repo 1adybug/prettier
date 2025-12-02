@@ -12,7 +12,10 @@
         "resolveJsonModule": true,
         "allowImportingTsExtensions": true,
         "noUncheckedSideEffectImports": true,
-        "strict": true
+        "strict": true,
+        "paths": {
+            "@/*": ["./src/*"]
+        }
     },
     "include": ["src"]
 }

@@ -1,5 +1,11 @@
 # @1adybug/prettier-plugin-sort-imports
 
+## 0.0.22
+
+### Patch Changes
+
+- 文件路径改为绝对路径
+
 ## 0.0.21
 
 ### Patch Changes

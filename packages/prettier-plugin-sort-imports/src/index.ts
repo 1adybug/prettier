@@ -1,5 +1,4 @@
 import { createRequire } from "module"
-import { relative } from "path"
 
 import { format, ParserOptions, Plugin } from "prettier"
 
@@ -23,13 +22,11 @@ function preprocessImports(text: string, options: ParserOptions & Partial<Plugin
 
         if (!parser || !supportedParsers.includes(parser as string)) return text
 
-        // 获取相对文件路径
-        const absoluteFilepath = options.filepath
-        // 将绝对路径转换为相对路径（以 ./ 开头）
-        const relativeFilepath = absoluteFilepath ? `./${relative(process.cwd(), absoluteFilepath).replace(/\\/g, "/")}` : undefined
+        // 使用文件的绝对路径，便于后续分组/别名解析
+        const filepath = options.filepath
 
-        // 解析导入语句
-        const imports = parseImports(text, relativeFilepath)
+        // 解析 import 语句
+        const imports = parseImports(text, filepath)
 
         if (imports.length === 0) return text
 

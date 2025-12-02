@@ -16,7 +16,7 @@ export interface ImportContent {
 
 /** 导入语句 */
 export interface ImportStatement {
-    /** 当前文件相对于当前路径的位置 */
+    /** Absolute path of current file */
     filepath?: string
     /** 导入的模块路径，可以是相对路径或绝对路径，比如 react, react-dom 或者 ./utils/index，@/utils/index 等 */
     path: string
@@ -42,7 +42,7 @@ export interface ImportStatement {
 
 /** 分组 */
 export interface Group {
-    /** 当前文件相对于当前路径的位置 */
+    /** Absolute path of current file */
     filepath?: string
     /** 分组名称，默认为 default */
     name: string

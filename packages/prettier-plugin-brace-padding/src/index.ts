@@ -1,6 +1,5 @@
-import * as estreePlugin from "prettier/plugins/estree"
-
 import { type Doc, AstPath, doc, ParserOptions, Plugin as PrettierPlugin, Printer } from "prettier"
+import * as estreePlugin from "prettier/plugins/estree"
 
 import { printStatementSequence } from "./helpers/sequence"
 
