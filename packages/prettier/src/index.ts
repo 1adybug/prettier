@@ -145,7 +145,7 @@ export const config: PluginConfig = {
     sortGroup(a, b) {
         return Number(a.isExport) - Number(b.isExport) || Number(a.isSideEffect) - Number(b.isSideEffect) || compareGroupName(a.name, b.name)
     },
-    separator: "",
+    groupSeparator: "",
     sortSideEffect: true,
     otherPlugins,
 }

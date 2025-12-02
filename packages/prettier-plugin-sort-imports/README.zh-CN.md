@@ -43,12 +43,6 @@ npx prettier --write "src/**/*.{js,ts,jsx,tsx}"
 ### 基本排序
 
 ```typescript
-import React, { useEffect, useState } from "react"
-
-import { Button } from "antd"
-
-import { sum } from "./utils"
-
 import "./styles.css"
 ```
 
@@ -74,7 +68,7 @@ export default {
                 return order.indexOf(a.name) - order.indexOf(b.name)
             },
             // 在分组之间添加空行
-            separator: "",
+            groupSeparator: "",
         }),
     ],
 }
@@ -83,15 +77,6 @@ export default {
 结果：
 
 ```typescript
-import React, { useState } from "react"
-
-import { Button } from "antd"
-import { format } from "date-fns"
-
-import { Header } from "./components/Header"
-
-import { sum } from "./utils"
-
 import "./styles.css"
 ```
 
@@ -161,7 +146,7 @@ interface PluginConfig {
     /** 自定义导入内容排序函数 */
     sortImportContent?: (a: ImportContent, b: ImportContent) => number
     /** 分组之间的分隔符 */
-    separator?: string | ((group: Group, index: number) => string | undefined)
+    groupSeparator?: string | ((group: Group, index: number) => string | undefined)
     /** 是否对副作用导入进行排序，默认为 false */
     sortSideEffect?: boolean
     /** 是否删除未使用的导入，默认为 false */
@@ -178,9 +163,9 @@ interface PluginConfig {
 ```javascript
 export default {
     plugins: ["@1adybug/prettier-plugin-sort-imports"],
-    importSortSideEffect: false, // 是否对副作用导入排序
-    importSortSeparator: "", // 分组分隔符
-    importSortRemoveUnused: false, // 是否删除未使用的导入
+    sortSideEffect: false, // 是否对副作用导入排序
+    groupSeparator: "", // 分组分隔符
+    removeUnusedImports: false, // 是否删除未使用的导入
 }
 ```
 
@@ -206,7 +191,7 @@ export default {
             sortImportContent: (a, b) => {
                 /* 自定义排序 */
             },
-            separator: "",
+            groupSeparator: "",
             sortSideEffect: true,
             removeUnusedImports: false,
         }),
@@ -267,7 +252,7 @@ export default createPlugin({
     },
 
     // 在分组间添加空行
-    separator: "\n",
+    groupSeparator: "\n",
 
     // 排序副作用导入
     sortSideEffect: true,
@@ -310,7 +295,7 @@ export default {
                 if (!statement.path.startsWith(".")) return "external"
                 return "local"
             },
-            separator: "\n",
+            groupSeparator: "\n",
 
             // 要合并的其他 Prettier 插件（仅支持 Plugin 对象）
             otherPlugins: [
@@ -348,7 +333,7 @@ export default {
 - `prettierOptions` 中的选项会传递给所有其他插件
 - 这允许其他插件即使在合并时也能接收到它们的配置
 
-### importSortRemoveUnused
+### removeUnusedImports
 
 是否删除未使用的导入，默认为 `false`。
 
@@ -356,11 +341,11 @@ export default {
 
 **开启后（true）**：自动分析代码并删除未使用的导入。
 
-```typescript
+```tsx
 // 排序前
-import React, { useState, useEffect } from "react"
-import { Button, Input } from "antd"
-import { helper } from "./utils"
+import { useState } from "react"
+
+import { Button } from "antd"
 
 function MyComponent() {
     const [count, setCount] = useState(0)
@@ -384,7 +369,7 @@ function MyComponent() {
 - 分析基于 AST，会识别代码中实际使用的标识符
 - 支持识别 JSX 组件、TypeScript 类型引用等
 
-### importSortSideEffect
+### sortSideEffect
 
 是否对副作用导入进行排序，默认为 `false`。
 
@@ -402,7 +387,7 @@ import "f-side-effect"
 import "f-side-effect"
 ```
 
-### separator
+### groupSeparator
 
 分组之间的分隔符，默认为 `undefined`（无分隔符）。
 
@@ -410,10 +395,10 @@ import "f-side-effect"
 
 ```javascript
 // 字符串：在所有分组间添加空行
-separator: ""
+groupSeparator: ""
 
 // 函数：灵活控制
-separator: (group, index) => {
+groupSeparator: (group, index) => {
     // 第一个分组不添加分隔符
     if (index === 0) return undefined
 
@@ -433,8 +418,7 @@ separator: (group, index) => {
 3. 命名导入按照 `type` 类型优先，然后按最终导入名称字母顺序排序
 
 ```typescript
-import Default, * as Namespace from "module"
-import { type TypeA, type TypeB, VariableA, VariableB } from "module"
+
 ```
 
 **自定义行为**：
@@ -453,7 +437,7 @@ createPlugin({
 ```
 
 ```typescript
-import { type User, API_KEY, getUser } from "api"
+
 ```
 
 ### 导入语句排序
@@ -461,9 +445,7 @@ import { type User, API_KEY, getUser } from "api"
 导入语句按模块路径的字母顺序排序：
 
 ```typescript
-import { a } from "a-module"
-import { b } from "b-module"
-import { c } from "c-module"
+
 ```
 
 ### 注释处理
@@ -471,14 +453,7 @@ import { c } from "c-module"
 注释会跟随它们所附加的导入语句一起移动：
 
 ```typescript
-// React 相关导入
-import React from "react"
 
-// UI 组件
-import { Button } from "antd"
-
-// 工具函数
-import { sum } from "./utils"
 ```
 
 ## 实现细节
@@ -516,7 +491,7 @@ import { sum } from "./utils"
 - 根据 `ImportStatement` 生成对应的 import/export 代码
 - 处理默认导入、命名导入、命名空间导入的格式
 - 处理 `type` 导入的格式
-- 根据 `separator` 配置在分组之间插入分隔符
+- 根据 `groupSeparator` 配置在分组之间插入分隔符
 - 保持注释关联
 
 #### 5. 插件入口 (`src/index.ts`)

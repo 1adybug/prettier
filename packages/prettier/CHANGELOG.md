@@ -1,5 +1,13 @@
 # @1adybug/prettier
 
+## 0.0.16
+
+### Patch Changes
+
+- 统一配置选项
+- Updated dependencies
+    - @1adybug/prettier-plugin-sort-imports@0.0.23
+
 ## 0.0.15
 
 ### Patch Changes

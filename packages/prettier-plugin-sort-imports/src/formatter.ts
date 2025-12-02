@@ -155,7 +155,7 @@ export function formatImportStatement(statement: ImportStatement): string {
 export function formatGroups(groups: Group[], config: PluginConfig): string {
     const lines: string[] = []
 
-    const separator = config.separator
+    const separator = config.groupSeparator
 
     for (let i = 0; i < groups.length; i++) {
         const group = groups[i]

@@ -44,12 +44,6 @@ npx prettier --write "src/**/*.{js,ts,jsx,tsx}"
 ### Basic Sorting
 
 ```typescript
-import React, { useEffect, useState } from "react"
-
-import { Button } from "antd"
-
-import { sum } from "./utils"
-
 import "./styles.css"
 ```
 
@@ -75,7 +69,7 @@ export default {
                 return order.indexOf(a.name) - order.indexOf(b.name)
             },
             // Add blank lines between groups
-            separator: "",
+            groupSeparator: "",
         }),
     ],
 }
@@ -84,15 +78,6 @@ export default {
 Result:
 
 ```typescript
-import React, { useState } from "react"
-
-import { Button } from "antd"
-import { format } from "date-fns"
-
-import { Header } from "./components/Header"
-
-import { sum } from "./utils"
-
 import "./styles.css"
 ```
 
@@ -162,7 +147,7 @@ interface PluginConfig {
     /** Custom import content sorting function */
     sortImportContent?: (a: ImportContent, b: ImportContent) => number
     /** Separator between groups */
-    separator?: string | ((group: Group, index: number) => string | undefined)
+    groupSeparator?: string | ((group: Group, index: number) => string | undefined)
     /** Whether to sort side effect imports, defaults to false */
     sortSideEffect?: boolean
     /** Whether to remove unused imports, defaults to false */
@@ -179,9 +164,9 @@ Use the default plugin with basic options:
 ```javascript
 export default {
     plugins: ["@1adybug/prettier-plugin-sort-imports"],
-    importSortSideEffect: false, // Whether to sort side effect imports
-    importSortSeparator: "", // Group separator
-    importSortRemoveUnused: false, // Whether to remove unused imports
+    sortSideEffect: false, // Whether to sort side effect imports
+    groupSeparator: "", // Group separator
+    removeUnusedImports: false, // Whether to remove unused imports
 }
 ```
 
@@ -210,7 +195,7 @@ export default {
             sortImportContent: (a, b) => a.name.localeCompare(b.name),
 
             // Configuration
-            separator: "\n",
+            groupSeparator: "\n",
             sortSideEffect: true,
             removeUnusedImports: false,
         }),
@@ -271,7 +256,7 @@ export default createPlugin({
     },
 
     // Add blank lines between groups
-    separator: "\n",
+    groupSeparator: "\n",
 
     // Sort side effects
     sortSideEffect: true,
@@ -314,7 +299,7 @@ export default {
                 if (!statement.path.startsWith(".")) return "external"
                 return "local"
             },
-            separator: "\n",
+            groupSeparator: "\n",
 
             // Other Prettier plugins to combine with (Plugin objects only)
             otherPlugins: [
@@ -352,7 +337,7 @@ export default {
 - Options in `prettierOptions` are passed to all other plugins
 - This allows other plugins to receive their configuration even when merged
 
-### importSortRemoveUnused
+### removeUnusedImports
 
 Whether to remove unused imports, defaults to `false`.
 
@@ -360,11 +345,11 @@ Whether to remove unused imports, defaults to `false`.
 
 **When enabled (true)**: Automatically analyzes code and removes unused imports.
 
-```typescript
+```tsx
 // Before sorting
-import React, { useState, useEffect } from "react"
-import { Button, Input } from "antd"
-import { helper } from "./utils"
+import { useState } from "react"
+
+import { Button } from "antd"
 
 function MyComponent() {
     const [count, setCount] = useState(0)
@@ -388,7 +373,7 @@ function MyComponent() {
 - Analysis is AST-based and identifies actually used identifiers in code
 - Supports identifying JSX components, TypeScript type references, etc.
 
-### importSortSideEffect
+### sortSideEffect
 
 Whether to sort side effect imports, defaults to `false`.
 
@@ -406,7 +391,7 @@ import "f-side-effect"
 import "f-side-effect"
 ```
 
-### separator
+### groupSeparator
 
 Separator between groups, defaults to `undefined` (no separator).
 
@@ -414,10 +399,10 @@ Can be a string or function:
 
 ```javascript
 // String: add blank lines between all groups
-separator: ""
+groupSeparator: ""
 
 // Function: flexible control
-separator: (group, index) => {
+groupSeparator: (group, index) => {
     // No separator for the first group
     if (index === 0) return undefined
 
@@ -437,8 +422,7 @@ separator: (group, index) => {
 3. Named imports are sorted by `type` priority, then alphabetically by final import name
 
 ```typescript
-import Default, * as Namespace from "module"
-import { type TypeA, type TypeB, VariableA, VariableB } from "module"
+
 ```
 
 **Custom behavior**:
@@ -457,7 +441,7 @@ createPlugin({
 ```
 
 ```typescript
-import { type User, API_KEY, getUser } from "api"
+
 ```
 
 ### Import Statement Sorting
@@ -465,9 +449,7 @@ import { type User, API_KEY, getUser } from "api"
 Import statements are sorted alphabetically by module path:
 
 ```typescript
-import { a } from "a-module"
-import { b } from "b-module"
-import { c } from "c-module"
+
 ```
 
 ### Comment Handling
@@ -475,14 +457,7 @@ import { c } from "c-module"
 Comments follow the import statements they are attached to:
 
 ```typescript
-// React related imports
-import React from "react"
 
-// UI components
-import { Button } from "antd"
-
-// Utilities
-import { sum } from "./utils"
 ```
 
 ## Implementation Details
@@ -520,7 +495,7 @@ Converts sorted import statements back to code strings:
 - Generate corresponding import/export code from `ImportStatement`
 - Handle formatting of default imports, named imports, namespace imports
 - Handle `type` import formatting
-- Insert separators between groups according to `separator` configuration
+- Insert separators between groups according to `groupSeparator` configuration
 - Maintain comment associations
 
 #### 5. Plugin Entry (`src/index.ts`)

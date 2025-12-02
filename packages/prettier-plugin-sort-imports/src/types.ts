@@ -67,7 +67,7 @@ export type SortImportStatementFunction = (a: ImportStatement, b: ImportStatemen
 export type SortImportContentFunction = (a: ImportContent, b: ImportContent) => number
 
 /** 分隔符函数 */
-export type SeparatorFunction = (group: Group, index: number) => string | undefined
+export type GroupSeparatorFunction = (group: Group, index: number) => string | undefined
 
 /** 插件配置 */
 export interface PluginConfig {
@@ -80,7 +80,7 @@ export interface PluginConfig {
     /** 可选的，默认按照导入内容的 name 的字母顺序排序，默认按照优先 type 类型在前，其次按照最终导入的内容名称的字母顺序排序 */
     sortImportContent?: SortImportContentFunction
     /** 分隔符，分组之间的分隔符，默认为 undefined */
-    separator?: string | SeparatorFunction
+    groupSeparator?: string | GroupSeparatorFunction
     /** 是否对副作用导入进行排序，默认为 false */
     sortSideEffect?: boolean
     /** 是否删除未使用的导入，默认为 false */

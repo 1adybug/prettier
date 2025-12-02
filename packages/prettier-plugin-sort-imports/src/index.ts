@@ -38,9 +38,9 @@ function preprocessImports(text: string, options: ParserOptions & Partial<Plugin
             sortGroup: config.sortGroup ?? optionsConfig.sortGroup,
             sortImportStatement: config.sortImportStatement ?? optionsConfig.sortImportStatement,
             sortImportContent: config.sortImportContent ?? optionsConfig.sortImportContent,
-            separator: config.separator ?? optionsConfig.importSortSeparator ?? optionsConfig.separator,
-            sortSideEffect: config.sortSideEffect ?? optionsConfig.importSortSideEffect ?? false,
-            removeUnusedImports: config.removeUnusedImports ?? optionsConfig.importSortRemoveUnused ?? false,
+            groupSeparator: config.groupSeparator ?? optionsConfig.groupSeparator,
+            sortSideEffect: config.sortSideEffect ?? optionsConfig.sortSideEffect ?? false,
+            removeUnusedImports: config.removeUnusedImports ?? optionsConfig.removeUnusedImports ?? false,
         }
 
         // 移除未使用的导入（如果配置了）
@@ -155,21 +155,21 @@ function createCombinedPreprocess(parserName: string, config: PluginConfig) {
 function createPluginInstance(config: PluginConfig = {}): Plugin {
     // 收集基础 options
     const baseOptions: Record<string, any> = {
-        importSortSeparator: {
+        groupSeparator: {
             type: "string",
             category: "Import Sort",
-            description: "分组之间的分隔符",
+            description: "����֮��ķָ���",
         },
-        importSortSideEffect: {
+        sortSideEffect: {
             type: "boolean",
             category: "Import Sort",
-            description: "是否对副作用导入进行排序",
+            description: "�Ƿ�Ը����õ����������",
             default: false,
         },
-        importSortRemoveUnused: {
+        removeUnusedImports: {
             type: "boolean",
             category: "Import Sort",
-            description: "是否删除未使用的导入",
+            description: "�Ƿ�ɾ��δʹ�õĵ���",
             default: false,
         },
     }
