@@ -11,6 +11,15 @@ function createPatchedEstreePrinter(base: Printer): Printer {
         const node = path.node
         if (!node) return ""
 
+        if (node.type === "EmptyStatement") {
+            try {
+                return base.print(path, options, print, args)
+            } catch (error) {
+                if (error instanceof Error && error.message?.includes('"EmptyStatement"')) return ";"
+                throw error
+            }
+        }
+
         // 在 Program、TSModuleBlock 和 BlockStatement 级别改写"语句序列"的拼接逻辑
         if (node.type === "Program") {
             const hasBody = Array.isArray(node.body) && node.body.length > 0

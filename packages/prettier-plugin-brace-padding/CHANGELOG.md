@@ -1,5 +1,11 @@
 # @1adybug/prettier-plugin-block-padding
 
+## 0.0.15
+
+### Patch Changes
+
+- 处理 EmptyStatement 节点的打印逻辑以避免错误
+
 ## 0.0.14
 
 ### Patch Changes

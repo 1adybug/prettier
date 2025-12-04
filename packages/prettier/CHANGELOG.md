@@ -1,5 +1,12 @@
 # @1adybug/prettier
 
+## 0.0.20
+
+### Patch Changes
+
+- Updated dependencies
+    - @1adybug/prettier-plugin-block-padding@0.0.15
+
 ## 0.0.19
 
 ### Patch Changes
