@@ -1,7 +1,7 @@
 // @ts-check
 
 /**
- * @type {import("prettier").Options}
+ * @type {import("@1adybug/prettier").Options}
  */
 const config = {
     semi: false,
@@ -11,7 +11,7 @@ const config = {
     printWidth: 160,
     plugins: ["@1adybug/prettier"],
     controlStatementBraces: "add",
-    multipleLineBraces: "add",
+    multiLineBraces: "add",
 }
 
 export default config

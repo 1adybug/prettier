@@ -1,16 +1,50 @@
 import { createRequire } from "module"
 
-import { format, ParserOptions, Plugin } from "prettier"
+import { format, ParserOptions, Plugin, Options as PrettierOptions } from "prettier"
 
 import { removeUnusedImportsFromStatements } from "./analyzer"
 import { formatGroups, formatImportStatements } from "./formatter"
 import { parseImports } from "./parser"
 import { groupImports, mergeImports, sortGroups, sortImports } from "./sorter"
-import type { PluginConfig } from "./types"
+import type { GetGroupFunction, GroupSeparatorFunction, PluginConfig, SortGroupFunction, SortImportContentFunction, SortImportStatementFunction } from "./types"
 
 export * from "./types"
 
 const require = createRequire(import.meta.url)
+
+export interface Options extends PrettierOptions {
+    /**
+     * 分组之间的分隔符，支持字符串或函数返回。
+     * @default undefined
+     */
+    groupSeparator?: string | GroupSeparatorFunction
+    /**
+     * 是否对副作用导入进行排序。
+     * @default false
+     */
+    sortSideEffect?: boolean
+    /**
+     * 是否删除未使用的导入。
+     * @default false
+     */
+    removeUnusedImports?: boolean
+    /**
+     * 自定义获取分组名称。
+     */
+    getGroup?: GetGroupFunction
+    /**
+     * 自定义分组排序逻辑。
+     */
+    sortGroup?: SortGroupFunction
+    /**
+     * 自定义导入语句排序逻辑。
+     */
+    sortImportStatement?: SortImportStatementFunction
+    /**
+     * 自定义导入内容排序逻辑。
+     */
+    sortImportContent?: SortImportContentFunction
+}
 
 /** 预处理导入语句 */
 function preprocessImports(text: string, options: ParserOptions & Partial<PluginConfig>, config: PluginConfig = {}): string {

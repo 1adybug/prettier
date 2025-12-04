@@ -1,5 +1,11 @@
 # @1adybug/prettier-plugin-remove-braces
 
+## 0.0.8
+
+### Patch Changes
+
+- multipleLineBraces 改为 multiLineBraces，新增类型导出
+
 ## 0.0.7
 
 ### Patch Changes
@@ -10,7 +16,7 @@
 
 ### Patch Changes
 
-- 新增 multipleLineBraces 选项，修复其他问题
+- 新增 multiLineBraces 选项，修复其他问题
 
 ## 0.0.5
 

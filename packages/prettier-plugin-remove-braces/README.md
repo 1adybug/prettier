@@ -185,7 +185,7 @@ if (condition) {
 }
 ```
 
-### `multipleLineBraces` (choice, default: "default")
+### `multiLineBraces` (choice, default: "default")
 
 Control how braces are handled when a single statement spans multiple lines.
 

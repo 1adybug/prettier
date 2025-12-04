@@ -3,11 +3,13 @@ import { builtinModules, createRequire } from "module"
 import { join, parse, resolve } from "path"
 
 import blockPadding from "@1adybug/prettier-plugin-block-padding"
-import removeBraces from "@1adybug/prettier-plugin-remove-braces"
-import { createPlugin, PluginConfig } from "@1adybug/prettier-plugin-sort-imports"
+import removeBraces, { Options as RemoveBracesOptions } from "@1adybug/prettier-plugin-remove-braces"
+import { createPlugin, PluginConfig, Options as SortImportsOptions } from "@1adybug/prettier-plugin-sort-imports"
 import { Plugin } from "prettier"
 import * as tailwindcss from "prettier-plugin-tailwindcss"
 import { createMatchPath, loadConfig } from "tsconfig-paths"
+
+export interface Options extends RemoveBracesOptions, SortImportsOptions {}
 
 const require = createRequire(import.meta.url)
 

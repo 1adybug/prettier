@@ -185,7 +185,7 @@ if (condition) {
 }
 ```
 
-### `multipleLineBraces` (选择类型, 默认: "default")
+### `multiLineBraces` (选择类型, 默认: "default")
 
 控制当单个语句跨多行时大括号的处理方式。
 

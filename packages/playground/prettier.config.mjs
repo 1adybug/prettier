@@ -11,7 +11,7 @@ const config = {
     printWidth: 160,
     plugins: ["@1adybug/prettier"],
     controlStatementBraces: "add",
-    multipleLineBraces: "add",
+    multiLineBraces: "add",
 }
 
 export default config

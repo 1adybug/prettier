@@ -1,14 +1,27 @@
 import { createRequire } from "module"
 
-import { format, ParserOptions, Plugin, SupportLanguage } from "prettier"
+import { format, ParserOptions, Plugin, Options as PrettierOptions, SupportLanguage } from "prettier"
 
 const require = createRequire(import.meta.url)
+
+export interface Options extends PrettierOptions {
+    /**
+     * 控制单个控制语句（if、for、while、try 等）周围大括号的处理方式。
+     * @default "default"
+     */
+    controlStatementBraces?: "default" | "remove" | "add"
+    /**
+     * 控制单语句是多行语句时的花括号处理方式。
+     * @default "default"
+     */
+    multiLineBraces?: "default" | "remove" | "add"
+}
 
 export interface PluginOptions extends ParserOptions {
     /** 控制单语句是控制语句时的花括号处理方式 */
     controlStatementBraces?: "default" | "remove" | "add"
     /** 控制单语句是多行语句时的花括号处理方式 */
-    multipleLineBraces?: "default" | "remove" | "add"
+    multiLineBraces?: "default" | "remove" | "add"
 }
 
 // Helper function to check if a statement is a lexical declaration
@@ -87,7 +100,7 @@ export interface TransformASTOptions {
     /** 控制单语句是控制语句时的花括号处理方式 */
     controlStatementBraces?: "default" | "remove" | "add"
     /** 控制单语句是多行语句时的花括号处理方式 */
-    multipleLineBraces?: "default" | "remove" | "add"
+    multiLineBraces?: "default" | "remove" | "add"
 }
 
 // Main AST transformation function
@@ -150,8 +163,8 @@ function transformAST(ast: any, options: TransformASTOptions = {}): any {
                 // "default" 和 "add" 模式：保持大括号
             } else {
                 if (isMultilineStatement(innerStatement)) {
-                    // 内部是多行语句，根据 multipleLineBraces 选项决定
-                    if (options.multipleLineBraces === "remove") transformed.consequent = copyLocationInfo(innerStatement, ast.consequent)
+                    // 内部是多行语句，根据 multiLineBraces 选项决定
+                    if (options.multiLineBraces === "remove") transformed.consequent = copyLocationInfo(innerStatement, ast.consequent)
                     // "default" 和 "add" 模式：保持大括号
                 } else
                     // 其他情况，总是移除大括号
@@ -174,8 +187,8 @@ function transformAST(ast: any, options: TransformASTOptions = {}): any {
                 // "default" 和 "add" 模式：保持大括号
             } else {
                 if (isMultilineStatement(innerStatement)) {
-                    // 内部是多行语句，根据 multipleLineBraces 选项决定
-                    if (options.multipleLineBraces === "remove") transformed.alternate = copyLocationInfo(innerStatement, ast.alternate)
+                    // 内部是多行语句，根据 multiLineBraces 选项决定
+                    if (options.multiLineBraces === "remove") transformed.alternate = copyLocationInfo(innerStatement, ast.alternate)
                     // "default" 和 "add" 模式：保持大括号
                 } else
                     // 其他情况，总是移除大括号
@@ -206,8 +219,8 @@ function transformAST(ast: any, options: TransformASTOptions = {}): any {
             }
         }
 
-        // Handle "add" mode for multipleLineBraces - 如果内部是多行语句且没有大括号，添加大括号
-        if (options.multipleLineBraces === "add") {
+        // Handle "add" mode for multiLineBraces - 如果内部是多行语句且没有大括号，添加大括号
+        if (options.multiLineBraces === "add") {
             if (ast.consequent && !isControlStatement(ast.consequent) && ast.consequent.type !== "BlockStatement" && isMultilineStatement(ast.consequent)) {
                 transformed.consequent = copyLocationInfo(
                     {
@@ -255,8 +268,8 @@ function transformAST(ast: any, options: TransformASTOptions = {}): any {
                     // "default" 和 "add" 模式：保持大括号
                 } else {
                     if (isMultilineStatement(innerStatement)) {
-                        // 内部是多行语句，根据 multipleLineBraces 选项决定
-                        if (options.multipleLineBraces === "remove") transformed.body = copyLocationInfo(innerStatement, block)
+                        // 内部是多行语句，根据 multiLineBraces 选项决定
+                        if (options.multiLineBraces === "remove") transformed.body = copyLocationInfo(innerStatement, block)
                         // "default" 和 "add" 模式：保持大括号
                     } else
                         // 其他情况，总是移除大括号
@@ -276,9 +289,9 @@ function transformAST(ast: any, options: TransformASTOptions = {}): any {
             )
         }
 
-        // Handle "add" mode for multipleLineBraces - 如果循环体是多行语句且没有大括号，添加大括号
+        // Handle "add" mode for multiLineBraces - 如果循环体是多行语句且没有大括号，添加大括号
         if (
-            options.multipleLineBraces === "add" &&
+            options.multiLineBraces === "add" &&
             ast.body &&
             !isControlStatement(ast.body) &&
             ast.body.type !== "BlockStatement" &&
@@ -454,7 +467,7 @@ export const plugin: Plugin = {
                 },
             ],
         },
-        multipleLineBraces: {
+        multiLineBraces: {
             type: "choice",
             default: "default",
             description: "Control how braces are handled when single statement spans multiple lines",

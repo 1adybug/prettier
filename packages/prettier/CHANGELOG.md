@@ -1,5 +1,15 @@
 # @1adybug/prettier
 
+## 0.0.19
+
+### Patch Changes
+
+- multipleLineBraces 改为 multiLineBraces，新增类型导出
+- Updated dependencies
+    - @1adybug/prettier-plugin-block-padding@0.0.14
+    - @1adybug/prettier-plugin-remove-braces@0.0.8
+    - @1adybug/prettier-plugin-sort-imports@0.0.26
+
 ## 0.0.18
 
 ### Patch Changes
@@ -67,7 +77,7 @@
 
 ### Patch Changes
 
-- 新增 multipleLineBraces 选项，修复其他问题
+- 新增 multiLineBraces 选项，修复其他问题
 - Updated dependencies
     - @1adybug/prettier-plugin-block-padding@0.0.12
     - @1adybug/prettier-plugin-remove-braces@0.0.6
