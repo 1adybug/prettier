@@ -1,5 +1,11 @@
 # @1adybug/prettier-plugin-sort-imports
 
+## 0.0.25
+
+### Patch Changes
+
+- 修复 trailingComma 参数的默认值处理逻辑
+
 ## 0.0.24
 
 ### Patch Changes

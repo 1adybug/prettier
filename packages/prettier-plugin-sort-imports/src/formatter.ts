@@ -2,12 +2,13 @@ import type { ParserOptions } from "prettier"
 
 import { Group, ImportStatement, PluginConfig } from "./types" /** 格式化导入语句 */
 
-export function formatImportStatement(statement: ImportStatement, trailingComma: ParserOptions["trailingComma"] = "es5"): string {
+export function formatImportStatement(statement: ImportStatement, trailingComma?: ParserOptions["trailingComma"]): string {
     const { path, isExport, isSideEffect, importContents, leadingComments, trailingComments, removedTrailingComments, emptyLinesAfterComments } = statement
 
     const lines: string[] = []
 
-    const shouldAddTrailingComma = trailingComma !== "none"
+    // 使用空值合并运算符处理 undefined，避免显式传递 undefined 时绕过默认值
+    const shouldAddTrailingComma = (trailingComma ?? "all") !== "none"
 
     // 添加前导注释
     if (leadingComments && leadingComments.length > 0) {
