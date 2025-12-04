@@ -66,10 +66,10 @@ function preprocessImports(text: string, options: ParserOptions & Partial<Plugin
         if (finalConfig.getGroup) {
             const groups = groupImports(mergedImports, finalConfig)
             const sortedGroups = sortGroups(groups, finalConfig)
-            formattedImports = formatGroups(sortedGroups, finalConfig)
+            formattedImports = formatGroups(sortedGroups, finalConfig, options.trailingComma)
         } else
             // 否则直接格式化
-            formattedImports = formatImportStatements(mergedImports)
+            formattedImports = formatImportStatements(mergedImports, options.trailingComma)
 
         // 获取导入块的起始和结束位置
         const firstImport = imports[0]

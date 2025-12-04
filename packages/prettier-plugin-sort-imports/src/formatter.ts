@@ -1,9 +1,13 @@
+import type { ParserOptions } from "prettier"
+
 import { Group, ImportStatement, PluginConfig } from "./types" /** 格式化导入语句 */
 
-export function formatImportStatement(statement: ImportStatement): string {
+export function formatImportStatement(statement: ImportStatement, trailingComma: ParserOptions["trailingComma"] = "es5"): string {
     const { path, isExport, isSideEffect, importContents, leadingComments, trailingComments, removedTrailingComments, emptyLinesAfterComments } = statement
 
     const lines: string[] = []
+
+    const shouldAddTrailingComma = trailingComma !== "none"
 
     // 添加前导注释
     if (leadingComments && leadingComments.length > 0) {
@@ -107,8 +111,32 @@ export function formatImportStatement(statement: ImportStatement): string {
         const importStart = `${keyword} ${typeKeyword}${defaultPart}{`
         const importEnd = `} from "${path}"`
 
+        const formatWithTrailingComma = (item: string) => {
+            const lines = item.split("\n")
+            const lastLine = lines.pop()!
+
+            // 将逗号插入到行尾注释之前（如果存在），以匹配 Prettier 的行为
+            const lineWithComma = (() => {
+                const lineCommentIndex = lastLine.indexOf(" //")
+                const blockCommentIndex = lastLine.indexOf(" /*")
+                const commentIndex =
+                    lineCommentIndex === -1 ? blockCommentIndex : blockCommentIndex === -1 ? lineCommentIndex : Math.min(lineCommentIndex, blockCommentIndex)
+
+                if (commentIndex === -1) return `${lastLine},`
+
+                return `${lastLine.slice(0, commentIndex)},${lastLine.slice(commentIndex)}`
+            })()
+
+            lines.push(lineWithComma)
+            return lines.join("\n")
+        }
+
         lines.push(importStart)
-        lines.push(`    ${namedPartsWithComments.join(",\n    ")},`)
+
+        const formattedParts = [...namedPartsWithComments]
+
+        if (shouldAddTrailingComma) formattedParts[formattedParts.length - 1] = formatWithTrailingComma(formattedParts[formattedParts.length - 1])
+        lines.push(`    ${formattedParts.join(",\n    ")}`)
         lines.push(importEnd)
     } else {
         // 单行格式
@@ -152,7 +180,7 @@ export function formatImportStatement(statement: ImportStatement): string {
 }
 
 /** 格式化分组 */
-export function formatGroups(groups: Group[], config: PluginConfig): string {
+export function formatGroups(groups: Group[], config: PluginConfig, trailingComma?: ParserOptions["trailingComma"]): string {
     const lines: string[] = []
 
     const separator = config.groupSeparator
@@ -176,13 +204,13 @@ export function formatGroups(groups: Group[], config: PluginConfig): string {
         }
 
         // 格式化分组中的导入语句
-        for (const statement of group.importStatements) lines.push(formatImportStatement(statement))
+        for (const statement of group.importStatements) lines.push(formatImportStatement(statement, trailingComma))
     }
 
     return lines.join("\n")
 }
 
 /** 格式化导入语句列表（不使用分组） */
-export function formatImportStatements(statements: ImportStatement[]): string {
-    return statements.map(formatImportStatement).join("\n")
+export function formatImportStatements(statements: ImportStatement[], trailingComma?: ParserOptions["trailingComma"]): string {
+    return statements.map(statement => formatImportStatement(statement, trailingComma)).join("\n")
 }

@@ -1,5 +1,11 @@
 # @1adybug/prettier-plugin-sort-imports
 
+## 0.0.24
+
+### Patch Changes
+
+- 修复重复添加尾随逗号的问题
+
 ## 0.0.23
 
 ### Patch Changes
