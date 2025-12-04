@@ -1,5 +1,11 @@
 # @1adybug/prettier
 
+## 0.0.21
+
+### Patch Changes
+
+- 修复 monorepo 下路径别名解析错误
+
 ## 0.0.20
 
 ### Patch Changes

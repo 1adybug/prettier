@@ -80,7 +80,7 @@ function isBuiltin(path: string) {
     return path.startsWith("node:") || builtinModules.includes(path)
 }
 
-function isAbsolute(path: string) {
+function isAbsolute(path: string, resolveAlias: ((importPath: string) => string | undefined) | undefined) {
     return !!resolveAlias?.(path)
 }
 
@@ -102,10 +102,10 @@ function compareGroupName(a: string, b: string) {
     return orders.indexOf(aInfo.type) - orders.indexOf(bInfo.type) || aInfo.dir.localeCompare(bInfo.dir)
 }
 
-function getModuleType(path: string) {
+function getModuleType(path: string, resolveAlias: ((importPath: string) => string | undefined) | undefined) {
     if (isReact(path)) return "react"
     if (isBuiltin(path)) return "builtin"
-    if (isAbsolute(path)) return "absolute"
+    if (isAbsolute(path, resolveAlias)) return "absolute"
     if (isRelative(path)) return "relative"
     return "third-party"
 }
@@ -113,8 +113,6 @@ function getModuleType(path: string) {
 const hasTailwindcss = hasDependency("tailwindcss")
 
 const otherPlugins: Plugin[] = hasTailwindcss ? [blockPadding, tailwindcss, removeBraces] : [blockPadding, removeBraces]
-
-let resolveAlias: ((importPath: string) => string | undefined) | undefined
 
 function getResolvedPathDir(resolvedPath: string) {
     if (existsSync(resolvedPath) && statSync(resolvedPath).isFile()) return parse(resolvedPath).dir
@@ -131,8 +129,9 @@ function getResolvedPathDir(resolvedPath: string) {
 
 export const config: PluginConfig = {
     getGroup({ path, filepath }) {
+        let resolveAlias: ((importPath: string) => string | undefined) | undefined
         if (filepath) resolveAlias ??= getResolveAlias(filepath)
-        const type = getModuleType(path)
+        const type = getModuleType(path, resolveAlias)
         let dir = ""
         if (type === "absolute") dir = getResolvedPathDir(resolveAlias!(path)!)
         if (type === "relative" && !!filepath) dir = getResolvedPathDir(resolve(filepath, "../", path))
