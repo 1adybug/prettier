@@ -1,5 +1,12 @@
 # @1adybug/prettier
 
+## 0.0.22
+
+### Patch Changes
+
+- Updated dependencies
+    - @1adybug/prettier-plugin-remove-braces@0.0.9
+
 ## 0.0.21
 
 ### Patch Changes

@@ -103,8 +103,40 @@ export interface TransformASTOptions {
     multiLineBraces?: "default" | "remove" | "add"
 }
 
+interface TransformContext {
+    parent?: any
+    parentKey?: string
+}
+
+// Certain parents (e.g. function bodies, try/catch) syntactically require a BlockStatement
+function isBlockRequiredContext(context: TransformContext): boolean {
+    const { parent, parentKey } = context
+
+    if (!parent || !parentKey) return false
+
+    if (
+        parentKey === "body" &&
+        [
+            "ArrowFunctionExpression",
+            "FunctionDeclaration",
+            "FunctionExpression",
+            "ObjectMethod",
+            "ClassMethod",
+            "ClassPrivateMethod",
+            "TSDeclareFunction",
+            "TSDeclareMethod",
+        ].includes(parent.type)
+    )
+        return true
+
+    if (parent.type === "CatchClause" && parentKey === "body") return true
+    if (parent.type === "TryStatement" && (parentKey === "block" || parentKey === "finalizer")) return true
+
+    return false
+}
+
 // Main AST transformation function
-function transformAST(ast: any, options: TransformASTOptions = {}): any {
+function transformAST(ast: any, options: TransformASTOptions = {}, context: TransformContext = {}): any {
     if (!ast || typeof ast !== "object") return ast
 
     // Handle ArrowFunctionExpression
@@ -243,8 +275,8 @@ function transformAST(ast: any, options: TransformASTOptions = {}): any {
         }
 
         // Recursively transform nested if statements
-        transformed.consequent = transformAST(transformed.consequent, options)
-        transformed.alternate = transformAST(transformed.alternate, options)
+        transformed.consequent = transformAST(transformed.consequent, options, { parent: transformed, parentKey: "consequent" })
+        transformed.alternate = transformAST(transformed.alternate, options, { parent: transformed, parentKey: "alternate" })
 
         return transformed
     }
@@ -307,7 +339,7 @@ function transformAST(ast: any, options: TransformASTOptions = {}): any {
         }
 
         // Recursively transform loop body
-        transformed.body = transformAST(transformed.body, options)
+        transformed.body = transformAST(transformed.body, options, { parent: transformed, parentKey: "body" })
 
         return transformed
     }
@@ -319,15 +351,17 @@ function transformAST(ast: any, options: TransformASTOptions = {}): any {
         ast.body.length === 1 &&
         !hasComments(ast) &&
         !isLexicalDeclaration(ast.body[0]) &&
-        isControlStatement(ast.body[0])
+        isControlStatement(ast.body[0]) &&
+        !isBlockRequiredContext(context)
     )
         return copyLocationInfo(ast.body[0], ast)
 
     // Recursively transform all child nodes
     for (const key in ast) {
-        if (Array.isArray(ast[key])) ast[key] = ast[key].map(item => transformAST(item, options))
+        if (Array.isArray(ast[key])) ast[key] = ast[key].map(item => transformAST(item, options, { parent: ast, parentKey: key }))
         else {
-            if (ast[key] && typeof ast[key] === "object" && key !== "loc" && key !== "range" && key !== "tokens") ast[key] = transformAST(ast[key], options)
+            if (ast[key] && typeof ast[key] === "object" && key !== "loc" && key !== "range" && key !== "tokens")
+                ast[key] = transformAST(ast[key], options, { parent: ast, parentKey: key })
         }
     }
 

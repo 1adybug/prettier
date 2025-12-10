@@ -1,5 +1,11 @@
 # @1adybug/prettier-plugin-remove-braces
 
+## 0.0.9
+
+### Patch Changes
+
+- 修复箭头函数主体为单个控制语句格式化错误的问题
+
 ## 0.0.8
 
 ### Patch Changes
