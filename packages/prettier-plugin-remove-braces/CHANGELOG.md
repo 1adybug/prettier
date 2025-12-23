@@ -1,5 +1,11 @@
 # @1adybug/prettier-plugin-remove-braces
 
+## 0.0.10
+
+### Patch Changes
+
+- 保留 else if 链式结构，不在 add 模式下添加大括号
+
 ## 0.0.9
 
 ### Patch Changes

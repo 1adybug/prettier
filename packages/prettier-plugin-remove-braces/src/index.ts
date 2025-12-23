@@ -240,7 +240,13 @@ function transformAST(ast: any, options: TransformASTOptions = {}, context: Tran
                 )
             }
 
-            if (ast.alternate && isControlStatement(ast.alternate) && ast.alternate.type !== "BlockStatement") {
+            // 对于 else if 语句（alternate 是 IfStatement），不添加大括号，保持链式结构
+            if (
+                ast.alternate &&
+                isControlStatement(ast.alternate) &&
+                ast.alternate.type !== "BlockStatement" &&
+                ast.alternate.type !== "IfStatement" // 排除 else if 的情况
+            ) {
                 transformed.alternate = copyLocationInfo(
                     {
                         type: "BlockStatement",
