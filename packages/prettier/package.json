@@ -1,6 +1,6 @@
 {
     "name": "@1adybug/prettier",
-    "version": "0.0.24",
+    "version": "0.0.25",
     "description": "推荐的 Prettier 配置",
     "keywords": [
         "prettier",

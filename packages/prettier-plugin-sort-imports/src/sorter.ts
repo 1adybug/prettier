@@ -77,9 +77,13 @@ const DEFAULT_CONFIG = {
 }
 
 /** 合并后的配置 */
-export interface MergedConfig extends Omit<Required<PluginConfig>, "groupSeparator" | "removeUnusedImports" | "otherPlugins" | "prettierOptions"> {
+export interface MergedConfig extends Omit<
+    Required<PluginConfig>,
+    "groupSeparator" | "removeUnusedImports" | "nodeProtocol" | "otherPlugins" | "prettierOptions"
+> {
     groupSeparator: PluginConfig["groupSeparator"]
     removeUnusedImports: boolean
+    nodeProtocol?: boolean
 }
 
 /** 合并用户配置和默认配置 */
@@ -92,6 +96,7 @@ function mergeConfig(userConfig: PluginConfig): MergedConfig {
         groupSeparator: userConfig.groupSeparator,
         sortSideEffect: userConfig.sortSideEffect ?? DEFAULT_CONFIG.sortSideEffect,
         removeUnusedImports: userConfig.removeUnusedImports ?? false,
+        nodeProtocol: userConfig.nodeProtocol,
     }
 }
 

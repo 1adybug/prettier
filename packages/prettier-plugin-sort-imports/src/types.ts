@@ -85,6 +85,8 @@ export interface PluginConfig {
     sortSideEffect?: boolean
     /** 是否删除未使用的导入，默认为 false */
     removeUnusedImports?: boolean
+    /** Whether to add/remove the node: prefix for Node.js builtin modules */
+    nodeProtocol?: boolean
     /** 要合并的其他 Prettier 插件，按传入顺序执行 */
     otherPlugins?: Plugin[]
     /** 传递给其他插件的 Prettier 配置选项 */

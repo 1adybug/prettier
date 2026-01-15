@@ -152,6 +152,8 @@ interface PluginConfig {
     sortSideEffect?: boolean
     /** Whether to remove unused imports, defaults to false */
     removeUnusedImports?: boolean
+    /** Whether to add/remove the node: prefix for Node.js builtin modules */
+    nodeProtocol?: boolean
 }
 ```
 
@@ -167,6 +169,7 @@ export default {
     sortSideEffect: false, // Whether to sort side effect imports
     groupSeparator: "", // Group separator
     removeUnusedImports: false, // Whether to remove unused imports
+    nodeProtocol: true, // Add node: prefix for Node.js builtin modules (false to remove)
 }
 ```
 
@@ -198,6 +201,7 @@ export default {
             groupSeparator: "\n",
             sortSideEffect: true,
             removeUnusedImports: false,
+            nodeProtocol: true,
         }),
     ],
 }
@@ -347,7 +351,8 @@ Whether to remove unused imports, defaults to `false`.
 
 ```tsx
 // Before sorting
-import { useState } from "react"
+// After sorting (with removeUnusedImports enabled)
+import React, { useState } from "react"
 
 import { Button } from "antd"
 
@@ -355,10 +360,6 @@ function MyComponent() {
     const [count, setCount] = useState(0)
     return <Button>Click me</Button>
 }
-
-// After sorting (with removeUnusedImports enabled)
-import React, { useState } from "react"
-import { Button } from "antd"
 
 function MyComponent() {
     const [count, setCount] = useState(0)
@@ -372,6 +373,23 @@ function MyComponent() {
 - Export statements (e.g., `export { x } from "module"`) will not be removed
 - Analysis is AST-based and identifies actually used identifiers in code
 - Supports identifying JSX components, TypeScript type references, etc.
+
+### nodeProtocol
+
+Whether to add/remove the `node:` prefix for Node.js builtin modules. Defaults to `undefined` (no change).
+
+- `true`: add `node:` prefix
+- `false`: remove `node:` prefix
+
+```ts
+// Before
+// nodeProtocol: false
+import fs from "fs"
+// nodeProtocol: true
+import fs from "node:fs"
+import path from "node:path"
+import path from "path"
+```
 
 ### sortSideEffect
 

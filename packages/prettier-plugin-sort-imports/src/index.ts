@@ -1,4 +1,4 @@
-import { createRequire } from "module"
+import { builtinModules, createRequire } from "module"
 
 import { format, ParserOptions, Plugin, Options as PrettierOptions } from "prettier"
 
@@ -20,6 +20,32 @@ export * from "./types"
 
 const require = createRequire(import.meta.url)
 
+const NODE_BUILTIN_MODULES = new Set(builtinModules.map(moduleName => (moduleName.startsWith("node:") ? moduleName.slice(5) : moduleName)))
+
+function isNodeBuiltinModule(modulePath: string): boolean {
+    const normalizedPath = modulePath.startsWith("node:") ? modulePath.slice(5) : modulePath
+    if (NODE_BUILTIN_MODULES.has(normalizedPath)) return true
+
+    const slashIndex = normalizedPath.indexOf("/")
+
+    if (slashIndex === -1) return false
+
+    return NODE_BUILTIN_MODULES.has(normalizedPath.slice(0, slashIndex))
+}
+
+function applyNodeProtocol(modulePath: string, nodeProtocol?: boolean): string {
+    if (nodeProtocol === undefined) return modulePath
+
+    const hasNodePrefix = modulePath.startsWith("node:")
+    const normalizedPath = hasNodePrefix ? modulePath.slice(5) : modulePath
+
+    if (!isNodeBuiltinModule(normalizedPath)) return modulePath
+
+    if (nodeProtocol) return hasNodePrefix ? modulePath : `node:${modulePath}`
+
+    return hasNodePrefix ? normalizedPath : modulePath
+}
+
 export interface Options extends PrettierOptions {
     /**
      * 分组之间的分隔符，支持字符串或函数返回。
@@ -36,6 +62,12 @@ export interface Options extends PrettierOptions {
      * @default false
      */
     removeUnusedImports?: boolean
+    /**
+     * Whether to add/remove the node: prefix for Node.js builtin modules.
+     * true: add, false: remove, undefined: no change.
+     * @default undefined
+     */
+    nodeProtocol?: boolean
     /**
      * 自定义获取分组名称。
      */
@@ -123,6 +155,7 @@ function preprocessImports(text: string, options: ParserOptions & Partial<Plugin
             groupSeparator: config.groupSeparator ?? optionsConfig.groupSeparator,
             sortSideEffect: config.sortSideEffect ?? optionsConfig.sortSideEffect ?? false,
             removeUnusedImports: config.removeUnusedImports ?? optionsConfig.removeUnusedImports ?? false,
+            nodeProtocol: config.nodeProtocol ?? optionsConfig.nodeProtocol,
         }
 
         const importRanges = getImportRanges(imports)
@@ -132,6 +165,13 @@ function preprocessImports(text: string, options: ParserOptions & Partial<Plugin
         let processedImports = imports
 
         if (finalConfig.removeUnusedImports) processedImports = removeUnusedImportsFromStatements(imports, textWithoutImports)
+
+        if (finalConfig.nodeProtocol !== undefined) {
+            processedImports = processedImports.map(statement => ({
+                ...statement,
+                path: applyNodeProtocol(statement.path, finalConfig.nodeProtocol),
+            }))
+        }
 
         // 排序导入语句
         const sortedImports = sortImports(processedImports, finalConfig)
@@ -251,6 +291,11 @@ function createPluginInstance(config: PluginConfig = {}): Plugin {
             category: "Import Sort",
             description: "�Ƿ�ɾ��δʹ�õĵ���",
             default: false,
+        },
+        nodeProtocol: {
+            type: "boolean",
+            category: "Import Sort",
+            description: "Use node: prefix for Node.js builtin modules",
         },
     }
 

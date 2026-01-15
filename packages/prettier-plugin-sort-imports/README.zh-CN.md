@@ -151,6 +151,8 @@ interface PluginConfig {
     sortSideEffect?: boolean
     /** 是否删除未使用的导入，默认为 false */
     removeUnusedImports?: boolean
+    /** 是否为 Node.js 内置模块自动添加/移除 node: 前缀 */
+    nodeProtocol?: boolean
 }
 ```
 
@@ -166,6 +168,7 @@ export default {
     sortSideEffect: false, // 是否对副作用导入排序
     groupSeparator: "", // 分组分隔符
     removeUnusedImports: false, // 是否删除未使用的导入
+    nodeProtocol: true, // 为 Node.js 内置模块添加 node: 前缀（false 为移除）
 }
 ```
 
@@ -194,6 +197,7 @@ export default {
             groupSeparator: "",
             sortSideEffect: true,
             removeUnusedImports: false,
+            nodeProtocol: true,
         }),
     ],
 }
@@ -343,7 +347,8 @@ export default {
 
 ```tsx
 // 排序前
-import { useState } from "react"
+// 排序后（开启 removeUnusedImports）
+import React, { useState } from "react"
 
 import { Button } from "antd"
 
@@ -351,10 +356,6 @@ function MyComponent() {
     const [count, setCount] = useState(0)
     return <Button>Click me</Button>
 }
-
-// 排序后（开启 removeUnusedImports）
-import React, { useState } from "react"
-import { Button } from "antd"
 
 function MyComponent() {
     const [count, setCount] = useState(0)
@@ -368,6 +369,23 @@ function MyComponent() {
 - 导出语句（如 `export { x } from "module"`）不会被删除
 - 分析基于 AST，会识别代码中实际使用的标识符
 - 支持识别 JSX 组件、TypeScript 类型引用等
+
+### nodeProtocol
+
+是否为 Node.js 内置模块自动添加/移除 `node:` 前缀，默认为 `undefined`（不处理）。
+
+- `true`：自动添加 `node:` 前缀
+- `false`：自动移除 `node:` 前缀
+
+```ts
+// 排序前
+// nodeProtocol: false
+import fs from "fs"
+// nodeProtocol: true
+import fs from "node:fs"
+import path from "node:path"
+import path from "path"
+```
 
 ### sortSideEffect
 
