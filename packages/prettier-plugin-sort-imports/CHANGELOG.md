@@ -1,5 +1,11 @@
 # @1adybug/prettier-plugin-sort-imports
 
+## 0.0.27
+
+### Patch Changes
+
+- 升级依赖，修复 import 语句未提升的问题
+
 ## 0.0.26
 
 ### Patch Changes

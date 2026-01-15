@@ -1,5 +1,11 @@
 # @1adybug/prettier-plugin-block-padding
 
+## 0.0.16
+
+### Patch Changes
+
+- 升级依赖，修复 import 语句未提升的问题
+
 ## 0.0.15
 
 ### Patch Changes

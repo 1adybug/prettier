@@ -1,5 +1,15 @@
 # @1adybug/prettier
 
+## 0.0.24
+
+### Patch Changes
+
+- 升级依赖，修复 import 语句未提升的问题
+- Updated dependencies
+    - @1adybug/prettier-plugin-block-padding@0.0.16
+    - @1adybug/prettier-plugin-remove-braces@0.0.11
+    - @1adybug/prettier-plugin-sort-imports@0.0.27
+
 ## 0.0.23
 
 ### Patch Changes

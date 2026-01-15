@@ -12,31 +12,31 @@
         "fg": "npm run format && git add . && git commit -m \"✨feature: format\""
     },
     "dependencies": {
-        "deepsea-components": "^5.17.10",
-        "deepsea-tools": "^5.43.1",
-        "react": "^19.2.0",
-        "react-dom": "^19.2.0"
+        "deepsea-components": "^5.17.20",
+        "deepsea-tools": "^5.46.0",
+        "react": "^19.2.3",
+        "react-dom": "^19.2.3"
     },
     "devDependencies": {
         "@1adybug/prettier": "workspace:*",
-        "@eslint/js": "^9.39.1",
-        "@rsbuild/core": "^1.6.11",
-        "@rsbuild/plugin-babel": "^1.0.6",
-        "@rsbuild/plugin-react": "^1.4.2",
-        "@rsbuild/plugin-svgr": "^1.2.2",
-        "@types/node": "^24.10.1",
-        "@types/react": "^19.2.6",
+        "@eslint/js": "^9.39.2",
+        "@rsbuild/core": "^1.7.2",
+        "@rsbuild/plugin-babel": "^1.0.7",
+        "@rsbuild/plugin-react": "^1.4.3",
+        "@rsbuild/plugin-svgr": "^1.2.4",
+        "@types/node": "^24.10.8",
+        "@types/react": "^19.2.8",
         "@types/react-dom": "^19.2.3",
-        "autoprefixer": "^10.4.22",
+        "autoprefixer": "^10.4.23",
         "babel-plugin-react-compiler": "^1.0.0",
-        "eslint": "^9.39.1",
+        "eslint": "^9.39.2",
         "eslint-plugin-react-hooks": "^7.0.1",
-        "eslint-plugin-react-refresh": "^0.4.24",
-        "globals": "^16.5.0",
+        "eslint-plugin-react-refresh": "^0.4.26",
+        "globals": "^17.0.0",
         "postcss": "^8.5.6",
-        "prettier": "^3.7.3",
-        "tailwindcss": "^3.4.18",
+        "prettier": "^3.8.0",
+        "tailwindcss": "^3.4.19",
         "typescript": "^5.9.3",
-        "typescript-eslint": "^8.48.0"
+        "typescript-eslint": "^8.53.0"
     }
 }

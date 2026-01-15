@@ -26,7 +26,7 @@ export function parseImports(code: string, filepath?: string): ImportStatement[]
     // 跟踪已使用的注释，避免重复
     const usedComments = new Set<Comment>()
 
-    // 只处理文件开头的连续导入/导出语句块
+    // 处理所有顶层导入/导出语句（不限制必须连续）
     let isFirstImport = true
 
     for (const node of body) {
@@ -34,8 +34,7 @@ export function parseImports(code: string, filepath?: string): ImportStatement[]
             const statement = parseImportNode(node, ast.comments ?? [], usedComments, code, isFirstImport, filepath)
             importStatements.push(statement)
             isFirstImport = false
-        } else break
-        // 遇到非导入/导出语句，停止处理
+        }
     }
 
     return importStatements

@@ -1,5 +1,11 @@
 # @1adybug/prettier-plugin-remove-braces
 
+## 0.0.11
+
+### Patch Changes
+
+- 升级依赖，修复 import 语句未提升的问题
+
 ## 0.0.10
 
 ### Patch Changes

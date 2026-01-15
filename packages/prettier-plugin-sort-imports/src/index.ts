@@ -6,7 +6,15 @@ import { removeUnusedImportsFromStatements } from "./analyzer"
 import { formatGroups, formatImportStatements } from "./formatter"
 import { parseImports } from "./parser"
 import { groupImports, mergeImports, sortGroups, sortImports } from "./sorter"
-import type { GetGroupFunction, GroupSeparatorFunction, PluginConfig, SortGroupFunction, SortImportContentFunction, SortImportStatementFunction } from "./types"
+import type {
+    GetGroupFunction,
+    GroupSeparatorFunction,
+    ImportStatement,
+    PluginConfig,
+    SortGroupFunction,
+    SortImportContentFunction,
+    SortImportStatementFunction,
+} from "./types"
 
 export * from "./types"
 
@@ -46,6 +54,46 @@ export interface Options extends PrettierOptions {
     sortImportContent?: SortImportContentFunction
 }
 
+function getImportRanges(imports: ImportStatement[]): Array<{ start: number; end: number }> {
+    const ranges = imports
+        .map(statement => ({
+            start: statement.start ?? 0,
+            end: statement.end ?? 0,
+        }))
+        .filter(range => range.end > range.start)
+        .sort((a, b) => a.start - b.start)
+
+    const merged: Array<{ start: number; end: number }> = []
+
+    for (const range of ranges) {
+        const last = merged[merged.length - 1]
+
+        if (last && range.start <= last.end) {
+            last.end = Math.max(last.end, range.end)
+            continue
+        }
+
+        merged.push({ ...range })
+    }
+
+    return merged
+}
+
+function removeRangesFromText(text: string, ranges: Array<{ start: number; end: number }>): string {
+    if (ranges.length === 0) return text
+
+    let result = ""
+    let cursor = 0
+
+    for (const range of ranges) {
+        result += text.slice(cursor, range.start)
+        cursor = range.end
+    }
+
+    result += text.slice(cursor)
+    return result
+}
+
 /** 预处理导入语句 */
 function preprocessImports(text: string, options: ParserOptions & Partial<PluginConfig>, config: PluginConfig = {}): string {
     try {
@@ -77,15 +125,13 @@ function preprocessImports(text: string, options: ParserOptions & Partial<Plugin
             removeUnusedImports: config.removeUnusedImports ?? optionsConfig.removeUnusedImports ?? false,
         }
 
+        const importRanges = getImportRanges(imports)
+        const textWithoutImports = removeRangesFromText(text, importRanges)
+
         // 移除未使用的导入（如果配置了）
         let processedImports = imports
 
-        if (finalConfig.removeUnusedImports) {
-            // 只分析导入语句之后的代码部分
-            const lastImport = imports[imports.length - 1]
-            const codeAfterImports = text.slice(lastImport.end ?? 0)
-            processedImports = removeUnusedImportsFromStatements(imports, codeAfterImports)
-        }
+        if (finalConfig.removeUnusedImports) processedImports = removeUnusedImportsFromStatements(imports, textWithoutImports)
 
         // 排序导入语句
         const sortedImports = sortImports(processedImports, finalConfig)
@@ -105,22 +151,22 @@ function preprocessImports(text: string, options: ParserOptions & Partial<Plugin
             // 否则直接格式化
             formattedImports = formatImportStatements(mergedImports, options.trailingComma)
 
-        // 获取导入块的起始和结束位置
+        // 获取导入块的起始位置（使用首个导入语句位置）
         const firstImport = imports[0]
-        const lastImport = imports[imports.length - 1]
 
         const startIndex = firstImport.start ?? 0
-        const endIndex = lastImport.end ?? text.length
 
         // 替换原始导入语句
-        const beforeImports = text.slice(0, startIndex)
+        const beforeImports = textWithoutImports.slice(0, startIndex)
 
-        const afterImports = text.slice(endIndex)
+        let afterImports = textWithoutImports.slice(startIndex)
 
         // 确保导入语句后面有适当的换行
         // 如果 afterImports 不是以换行开始,添加两个换行
+        if (afterImports) afterImports = afterImports.replace(/^\n+/, "\n")
+
         const needsExtraNewline = afterImports && !afterImports.startsWith("\n")
-        const separator = needsExtraNewline ? "\n\n" : "\n"
+        const separator = afterImports ? (needsExtraNewline ? "\n\n" : "\n") : ""
 
         return beforeImports + formattedImports + separator + afterImports
     } catch (error) {

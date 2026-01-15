@@ -21,22 +21,32 @@
         "check": "bun scripts/tsc.mjs"
     },
     "dependencies": {
-        "soda-nodejs": "^0.8.5"
+        "soda-nodejs": "^0.8.9"
     },
     "devDependencies": {
         "@1adybug/prettier": "workspace:*",
-        "@changesets/cli": "^2.29.7",
-        "@eslint/js": "^9.39.1",
-        "@types/node": "^24.10.1",
-        "eslint": "^9.39.1",
-        "globals": "^16.5.0",
+        "@changesets/cli": "^2.29.8",
+        "@eslint/js": "^9.39.2",
+        "@types/node": "^24.10.8",
+        "eslint": "^9.39.2",
+        "globals": "^17.0.0",
         "husky": "^9.1.7",
         "lint-staged": "^16.2.7",
-        "prettier": "^3.7.3",
+        "prettier": "^3.8.0",
         "typescript": "^5.9.3",
-        "typescript-eslint": "^8.46.4"
+        "typescript-eslint": "^8.53.0"
     },
     "lint-staged": {
         "**/*": "prettier --write --ignore-unknown"
+    },
+    "specifier": {},
+    "workspaces": {
+        "packages": [
+            "packages/*"
+        ],
+        "catalog": {
+            "@types/node": "^24.10.8",
+            "prettier": "^3.8.0"
+        }
     }
 }
