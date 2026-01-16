@@ -1,4 +1,4 @@
-import { builtinModules, createRequire } from "module"
+import { builtinModules, createRequire } from "node:module"
 
 import { format, ParserOptions, Plugin, Options as PrettierOptions } from "prettier"
 

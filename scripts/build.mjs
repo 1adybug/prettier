@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 
-import { execSync } from "child_process"
-import { readdir, readFile } from "fs/promises"
-import path from "path"
-import * as process from "process"
-import { fileURLToPath } from "url"
+import { execSync } from "node:child_process"
+import { readdir, readFile } from "node:fs/promises"
+import path from "node:path"
+import * as process from "node:process"
+import { fileURLToPath } from "node:url"
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const rootDir = path.resolve(__dirname, "..")

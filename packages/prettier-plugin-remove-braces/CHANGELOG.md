@@ -1,5 +1,11 @@
 # @1adybug/prettier-plugin-remove-braces
 
+## 0.0.12
+
+### Patch Changes
+
+- 添加 node: 前缀
+
 ## 0.0.11
 
 ### Patch Changes

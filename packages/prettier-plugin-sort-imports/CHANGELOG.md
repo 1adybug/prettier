@@ -1,5 +1,11 @@
 # @1adybug/prettier-plugin-sort-imports
 
+## 0.0.30
+
+### Patch Changes
+
+- 添加 node: 前缀
+
 ## 0.0.29
 
 ### Patch Changes

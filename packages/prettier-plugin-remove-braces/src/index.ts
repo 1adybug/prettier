@@ -1,4 +1,4 @@
-import { createRequire } from "module"
+import { createRequire } from "node:module"
 
 import { format, ParserOptions, Plugin, Options as PrettierOptions, SupportLanguage } from "prettier"
 

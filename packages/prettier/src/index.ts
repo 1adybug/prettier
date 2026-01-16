@@ -1,6 +1,6 @@
-import { existsSync, readdirSync, statSync } from "fs"
-import { builtinModules, createRequire } from "module"
-import { join, parse, resolve } from "path"
+import { existsSync, readdirSync, statSync } from "node:fs"
+import { builtinModules, createRequire } from "node:module"
+import { join, parse, resolve } from "node:path"
 
 import blockPadding from "@1adybug/prettier-plugin-block-padding"
 import removeBraces, { Options as RemoveBracesOptions } from "@1adybug/prettier-plugin-remove-braces"

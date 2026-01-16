@@ -1,5 +1,14 @@
 # @1adybug/prettier
 
+## 0.0.27
+
+### Patch Changes
+
+- 添加 node: 前缀
+- Updated dependencies
+    - @1adybug/prettier-plugin-remove-braces@0.0.12
+    - @1adybug/prettier-plugin-sort-imports@0.0.30
+
 ## 0.0.26
 
 ### Patch Changes

@@ -6,3 +6,4 @@ generated
 .next
 .vscode
 .generated
+*.md
