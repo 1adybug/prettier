@@ -1,5 +1,12 @@
 # @1adybug/prettier
 
+## 0.0.26
+
+### Patch Changes
+
+- Updated dependencies
+    - @1adybug/prettier-plugin-sort-imports@0.0.29
+
 ## 0.0.25
 
 ### Patch Changes

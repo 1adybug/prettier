@@ -33,7 +33,7 @@ function isNodeBuiltinModule(modulePath: string): boolean {
     return NODE_BUILTIN_MODULES.has(normalizedPath.slice(0, slashIndex))
 }
 
-function applyNodeProtocol(modulePath: string, nodeProtocol?: boolean): string {
+function applyNodeProtocol(modulePath: string, nodeProtocol?: "add" | "remove"): string {
     if (nodeProtocol === undefined) return modulePath
 
     const hasNodePrefix = modulePath.startsWith("node:")
@@ -41,9 +41,11 @@ function applyNodeProtocol(modulePath: string, nodeProtocol?: boolean): string {
 
     if (!isNodeBuiltinModule(normalizedPath)) return modulePath
 
-    if (nodeProtocol) return hasNodePrefix ? modulePath : `node:${modulePath}`
+    if (nodeProtocol === "add") return hasNodePrefix ? modulePath : `node:${modulePath}`
 
-    return hasNodePrefix ? normalizedPath : modulePath
+    if (nodeProtocol === "remove") return hasNodePrefix ? normalizedPath : modulePath
+
+    return modulePath
 }
 
 export interface Options extends PrettierOptions {
@@ -64,10 +66,10 @@ export interface Options extends PrettierOptions {
     removeUnusedImports?: boolean
     /**
      * Whether to add/remove the node: prefix for Node.js builtin modules.
-     * true: add, false: remove, undefined: no change.
+     * "add": add, "remove": remove, undefined: no change.
      * @default undefined
      */
-    nodeProtocol?: boolean
+    nodeProtocol?: "add" | "remove"
     /**
      * 自定义获取分组名称。
      */
@@ -293,9 +295,9 @@ function createPluginInstance(config: PluginConfig = {}): Plugin {
             default: false,
         },
         nodeProtocol: {
-            type: "boolean",
+            type: "string",
             category: "Import Sort",
-            description: "Use node: prefix for Node.js builtin modules",
+            description: "Add/remove node: prefix for Node.js builtin modules",
         },
     }
 

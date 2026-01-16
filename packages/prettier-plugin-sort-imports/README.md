@@ -153,7 +153,7 @@ interface PluginConfig {
     /** Whether to remove unused imports, defaults to false */
     removeUnusedImports?: boolean
     /** Whether to add/remove the node: prefix for Node.js builtin modules */
-    nodeProtocol?: boolean
+    nodeProtocol?: "add" | "remove"
 }
 ```
 
@@ -169,7 +169,7 @@ export default {
     sortSideEffect: false, // Whether to sort side effect imports
     groupSeparator: "", // Group separator
     removeUnusedImports: false, // Whether to remove unused imports
-    nodeProtocol: true, // Add node: prefix for Node.js builtin modules (false to remove)
+    nodeProtocol: "add", // "add" to add node: prefix ("remove" to remove)
 }
 ```
 
@@ -201,7 +201,7 @@ export default {
             groupSeparator: "\n",
             sortSideEffect: true,
             removeUnusedImports: false,
-            nodeProtocol: true,
+            nodeProtocol: "add",
         }),
     ],
 }
@@ -378,14 +378,14 @@ function MyComponent() {
 
 Whether to add/remove the `node:` prefix for Node.js builtin modules. Defaults to `undefined` (no change).
 
-- `true`: add `node:` prefix
-- `false`: remove `node:` prefix
+- `"add"`: add `node:` prefix
+- `"remove"`: remove `node:` prefix
 
 ```ts
 // Before
-// nodeProtocol: false
+// nodeProtocol: "remove"
 import fs from "fs"
-// nodeProtocol: true
+// nodeProtocol: "add"
 import fs from "node:fs"
 import path from "node:path"
 import path from "path"

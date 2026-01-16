@@ -83,7 +83,7 @@ export interface MergedConfig extends Omit<
 > {
     groupSeparator: PluginConfig["groupSeparator"]
     removeUnusedImports: boolean
-    nodeProtocol?: boolean
+    nodeProtocol?: PluginConfig["nodeProtocol"]
 }
 
 /** 合并用户配置和默认配置 */

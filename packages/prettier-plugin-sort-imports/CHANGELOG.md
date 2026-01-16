@@ -1,5 +1,11 @@
 # @1adybug/prettier-plugin-sort-imports
 
+## 0.0.29
+
+### Patch Changes
+
+- 修改类型，与其他插件保持一致
+
 ## 0.0.28
 
 ### Patch Changes

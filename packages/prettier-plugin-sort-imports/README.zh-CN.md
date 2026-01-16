@@ -152,7 +152,7 @@ interface PluginConfig {
     /** 是否删除未使用的导入，默认为 false */
     removeUnusedImports?: boolean
     /** 是否为 Node.js 内置模块自动添加/移除 node: 前缀 */
-    nodeProtocol?: boolean
+    nodeProtocol?: "add" | "remove"
 }
 ```
 
@@ -168,7 +168,7 @@ export default {
     sortSideEffect: false, // 是否对副作用导入排序
     groupSeparator: "", // 分组分隔符
     removeUnusedImports: false, // 是否删除未使用的导入
-    nodeProtocol: true, // 为 Node.js 内置模块添加 node: 前缀（false 为移除）
+    nodeProtocol: "add", // "add" 为添加 node: 前缀（"remove" 为移除）
 }
 ```
 
@@ -197,7 +197,7 @@ export default {
             groupSeparator: "",
             sortSideEffect: true,
             removeUnusedImports: false,
-            nodeProtocol: true,
+            nodeProtocol: "add",
         }),
     ],
 }
@@ -374,14 +374,14 @@ function MyComponent() {
 
 是否为 Node.js 内置模块自动添加/移除 `node:` 前缀，默认为 `undefined`（不处理）。
 
-- `true`：自动添加 `node:` 前缀
-- `false`：自动移除 `node:` 前缀
+- `"add"`：自动添加 `node:` 前缀
+- `"remove"`：自动移除 `node:` 前缀
 
 ```ts
 // 排序前
-// nodeProtocol: false
+// nodeProtocol: "remove"
 import fs from "fs"
-// nodeProtocol: true
+// nodeProtocol: "add"
 import fs from "node:fs"
 import path from "node:path"
 import path from "path"
