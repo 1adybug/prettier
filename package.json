@@ -24,17 +24,15 @@
         "soda-nodejs": "^0.8.9"
     },
     "devDependencies": {
+        "@1adybug/eslint": "^0.0.4",
         "@1adybug/prettier": "workspace:*",
         "@changesets/cli": "^2.29.8",
-        "@eslint/js": "^9.39.2",
-        "@types/node": "^24.10.8",
-        "eslint": "^9.39.2",
-        "globals": "^17.0.0",
+        "@types/node": "catalog:",
+        "eslint": "^9.39.3",
         "husky": "^9.1.7",
         "lint-staged": "^16.2.7",
-        "prettier": "^3.8.0",
-        "typescript": "^5.9.3",
-        "typescript-eslint": "^8.53.0"
+        "prettier": "catalog:",
+        "typescript": "^5.9.3"
     },
     "lint-staged": {
         "**/*": "prettier --write --ignore-unknown"
@@ -45,8 +43,8 @@
             "packages/*"
         ],
         "catalog": {
-            "@types/node": "^24.10.8",
-            "prettier": "^3.8.0"
+            "@types/node": "^24.10.14",
+            "prettier": "^3.8.1"
         }
     }
 }
