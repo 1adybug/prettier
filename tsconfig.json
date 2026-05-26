@@ -1,5 +1,6 @@
 {
     "compilerOptions": {
+        "rootDir": "src",
         "lib": ["ES2022"],
         "module": "ESNext",
         "noEmit": true,
@@ -9,7 +10,8 @@
         "resolveJsonModule": true,
         "moduleResolution": "bundler",
         "useDefineForClassFields": true,
-        "allowImportingTsExtensions": true
+        "allowImportingTsExtensions": true,
+        "types": ["node"]
     },
     "include": ["src"]
 }

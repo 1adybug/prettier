@@ -13,6 +13,7 @@ const config = {
     controlStatementBraces: "add",
     multiLineBraces: "add",
     nodeProtocol: "add",
+    markTypeOnlyImports: true,
 }
 
 export default config
