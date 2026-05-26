@@ -74,15 +74,19 @@ const DEFAULT_CONFIG = {
     sortImportStatement: defaultSortImportStatement,
     sortImportContent: defaultSortImportContent,
     sortSideEffect: false,
+    markTypeOnlyImports: false,
+    mergeTypeImports: true,
 }
 
 /** 合并后的配置 */
 export interface MergedConfig extends Omit<
     Required<PluginConfig>,
-    "groupSeparator" | "removeUnusedImports" | "nodeProtocol" | "otherPlugins" | "prettierOptions"
+    "groupSeparator" | "removeUnusedImports" | "markTypeOnlyImports" | "mergeTypeImports" | "nodeProtocol" | "otherPlugins" | "prettierOptions"
 > {
     groupSeparator: PluginConfig["groupSeparator"]
     removeUnusedImports: boolean
+    markTypeOnlyImports: boolean
+    mergeTypeImports: boolean
     nodeProtocol?: PluginConfig["nodeProtocol"]
 }
 
@@ -96,6 +100,8 @@ function mergeConfig(userConfig: PluginConfig): MergedConfig {
         groupSeparator: userConfig.groupSeparator,
         sortSideEffect: userConfig.sortSideEffect ?? DEFAULT_CONFIG.sortSideEffect,
         removeUnusedImports: userConfig.removeUnusedImports ?? false,
+        markTypeOnlyImports: userConfig.markTypeOnlyImports ?? DEFAULT_CONFIG.markTypeOnlyImports,
+        mergeTypeImports: userConfig.mergeTypeImports ?? DEFAULT_CONFIG.mergeTypeImports,
         nodeProtocol: userConfig.nodeProtocol,
     }
 }
@@ -292,6 +298,9 @@ export function mergeImports(imports: ImportStatement[]): ImportStatement[] {
 
                 if (!existingContent) mergedContents.push(content)
                 else {
+                    // If the same specifier is imported as both type and value, keep the value import.
+                    if (existingContent.type === "type" && content.type === "variable") existingContent.type = "variable"
+
                     // 如果已存在，合并注释
                     if (content.leadingComments) existingContent.leadingComments = [...(existingContent.leadingComments ?? []), ...content.leadingComments]
 

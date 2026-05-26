@@ -1,5 +1,11 @@
 # @1adybug/prettier-plugin-remove-braces
 
+## 0.0.13
+
+### Patch Changes
+
+- feat(sort-imports): add configurable type-only import handling
+
 ## 0.0.12
 
 ### Patch Changes

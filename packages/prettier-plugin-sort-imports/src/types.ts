@@ -85,6 +85,10 @@ export interface PluginConfig {
     sortSideEffect?: boolean
     /** 是否删除未使用的导入，默认为 false */
     removeUnusedImports?: boolean
+    /** 是否将仅用于类型位置的命名导入标记为 type，默认为 false */
+    markTypeOnlyImports?: boolean
+    /** 是否将全为 type 的命名导入合并为 import type/export type，默认为 true */
+    mergeTypeImports?: boolean
     /** Whether to add/remove the node: prefix for Node.js builtin modules */
     nodeProtocol?: "add" | "remove"
     /** 要合并的其他 Prettier 插件，按传入顺序执行 */

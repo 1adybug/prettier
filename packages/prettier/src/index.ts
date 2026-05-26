@@ -5,7 +5,7 @@ import { join, parse, resolve } from "node:path"
 import blockPadding from "@1adybug/prettier-plugin-block-padding"
 import removeBraces, { Options as RemoveBracesOptions } from "@1adybug/prettier-plugin-remove-braces"
 import { createPlugin, PluginConfig, Options as SortImportsOptions } from "@1adybug/prettier-plugin-sort-imports"
-import { Plugin } from "prettier"
+import type { Plugin } from "prettier"
 import * as tailwindcss from "prettier-plugin-tailwindcss"
 import { createMatchPath, loadConfig } from "tsconfig-paths"
 
@@ -111,8 +111,9 @@ function getModuleType(path: string, resolveAlias: ((importPath: string) => stri
 }
 
 const hasTailwindcss = hasDependency("tailwindcss")
+const tailwindcssPlugin = tailwindcss as unknown as Plugin
 
-const otherPlugins: Plugin[] = hasTailwindcss ? [blockPadding, tailwindcss, removeBraces] : [blockPadding, removeBraces]
+const otherPlugins: Plugin[] = hasTailwindcss ? [blockPadding, tailwindcssPlugin, removeBraces] : [blockPadding, removeBraces]
 
 function getResolvedPathDir(resolvedPath: string) {
     if (existsSync(resolvedPath) && statSync(resolvedPath).isFile()) return parse(resolvedPath).dir

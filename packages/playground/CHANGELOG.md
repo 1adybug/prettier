@@ -1,5 +1,11 @@
 # playground
 
+## 1.0.3
+
+### Patch Changes
+
+- feat(sort-imports): add configurable type-only import handling
+
 ## 1.0.2
 
 ### Patch Changes

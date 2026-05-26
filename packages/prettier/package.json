@@ -1,6 +1,6 @@
 {
     "name": "@1adybug/prettier",
-    "version": "0.0.27",
+    "version": "0.0.28",
     "description": "推荐的 Prettier 配置",
     "keywords": [
         "prettier",
@@ -44,13 +44,13 @@
         "@1adybug/prettier-plugin-block-padding": "workspace:*",
         "@1adybug/prettier-plugin-remove-braces": "workspace:*",
         "@1adybug/prettier-plugin-sort-imports": "workspace:*",
-        "prettier-plugin-tailwindcss": "^0.7.2",
+        "prettier-plugin-tailwindcss": "^0.8.0",
         "tsconfig-paths": "^4.2.0"
     },
     "devDependencies": {
-        "@rslib/core": "^0.18.6",
+        "@rslib/core": "^0.21.5",
         "@types/node": "^24.10.8",
-        "typescript": "^5.9.3"
+        "typescript": "^6.0.3"
     },
     "peerDependencies": {
         "prettier": "^3.8.0"

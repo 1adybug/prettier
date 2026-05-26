@@ -1,15 +1,106 @@
 import { parse } from "@babel/parser"
 import traverseModule, { NodePath } from "@babel/traverse"
-import { ExportNamedDeclaration, Identifier, JSXIdentifier, JSXMemberExpression, TSTypeReference } from "@babel/types"
+import {
+    ExportNamedDeclaration,
+    Identifier,
+    JSXIdentifier,
+    JSXMemberExpression,
+    TSExpressionWithTypeArguments,
+    TSTypeQuery,
+    TSTypeReference,
+} from "@babel/types"
 
 import { ImportContent, ImportStatement } from "./types"
 
 // 处理 ESM/CommonJS 兼容性
 const traverse = typeof traverseModule === "function" ? traverseModule : (traverseModule as { default: typeof traverseModule }).default
 
-/** 分析代码中使用的标识符 */
-export function analyzeUsedIdentifiers(code: string): Set<string> | null {
-    const usedIdentifiers = new Set<string>()
+export interface IdentifierUsage {
+    /** 是否在类型位置使用 */
+    type: boolean
+    /** 是否在值位置使用 */
+    value: boolean
+}
+
+function addUsage(usages: Map<string, IdentifierUsage>, name: string, kind: keyof IdentifierUsage): void {
+    const usage = usages.get(name) ?? { type: false, value: false }
+    usage[kind] = true
+    usages.set(name, usage)
+}
+
+function getRootIdentifierName(node: any): string | undefined {
+    if (!node) return undefined
+
+    if (node.type === "Identifier" || node.type === "JSXIdentifier") return node.name
+
+    if (node.type === "TSQualifiedName") return getRootIdentifierName(node.left)
+
+    if (node.type === "MemberExpression" || node.type === "OptionalMemberExpression") return getRootIdentifierName(node.object)
+
+    if (node.type === "JSXMemberExpression") return getRootIdentifierName(node.object)
+
+    return undefined
+}
+
+function isTypeDeclarationName(path: NodePath<Identifier>): boolean {
+    const parent = path.parent
+
+    return (
+        (parent.type === "TSTypeAliasDeclaration" && parent.id === path.node) ||
+        (parent.type === "TSInterfaceDeclaration" && parent.id === path.node) ||
+        (parent.type === "TSEnumDeclaration" && parent.id === path.node) ||
+        (parent.type === "TSModuleDeclaration" && parent.id === path.node)
+    )
+}
+
+function isTypeOnlyIdentifierPosition(path: NodePath<Identifier>): boolean {
+    let current: NodePath = path
+
+    while (current.parentPath) {
+        const parentPath = current.parentPath
+        const parent = parentPath.node
+
+        if (
+            parent.type === "TSTypeReference" ||
+            parent.type === "TSTypeQuery" ||
+            parent.type === "TSExpressionWithTypeArguments" ||
+            parent.type === "TSQualifiedName"
+        )
+            return true
+
+        if (
+            (parent.type === "TSAsExpression" ||
+                parent.type === "TSSatisfiesExpression" ||
+                parent.type === "TSTypeAssertion" ||
+                parent.type === "TSNonNullExpression" ||
+                parent.type === "TSInstantiationExpression") &&
+            current.key === "expression"
+        )
+            return false
+
+        if (parent.type.startsWith("TS")) return true
+
+        current = parentPath
+    }
+
+    return false
+}
+
+function addRootTypeUsage(usages: Map<string, IdentifierUsage>, node: any): void {
+    const name = getRootIdentifierName(node)
+
+    if (name) addUsage(usages, name, "type")
+}
+
+function addRootValueUsage(usages: Map<string, IdentifierUsage>, node: any): void {
+    const name = getRootIdentifierName(node)
+
+    if (name) addUsage(usages, name, "value")
+}
+
+/** 分析代码中标识符的类型位置和值位置使用情况 */
+export function analyzeIdentifierUsages(code: string): Map<string, IdentifierUsage> | null {
+    const usages = new Map<string, IdentifierUsage>()
 
     try {
         const ast = parse(code, {
@@ -26,12 +117,18 @@ export function analyzeUsedIdentifiers(code: string): Set<string> | null {
                 const parent = path.parent
 
                 // 只收集被引用的标识符
-                if (!path.isReferenced()) return
+                if (!path.isReferencedIdentifier()) return
+
+                if (isTypeDeclarationName(path)) return
+
+                if (parent?.type === "ExportSpecifier") return
 
                 // 跳过对象属性的 key（除非是计算属性）
                 if (parent?.type === "ObjectProperty" && parent.key === node && !parent.computed) return
 
-                usedIdentifiers.add(node.name)
+                if (isTypeOnlyIdentifierPosition(path)) return
+
+                addUsage(usages, node.name, "value")
             },
 
             // 处理 JSX 标识符
@@ -39,35 +136,27 @@ export function analyzeUsedIdentifiers(code: string): Set<string> | null {
                 const node = path.node
 
                 // JSX 开始标签和结束标签
-                if (path.parent?.type === "JSXOpeningElement" || path.parent?.type === "JSXClosingElement") usedIdentifiers.add(node.name)
+                if (path.parent?.type === "JSXOpeningElement" || path.parent?.type === "JSXClosingElement") addUsage(usages, node.name, "value")
             },
 
             // 处理 JSX 成员表达式（如 <DatePicker.RangePicker />）
             JSXMemberExpression(path: NodePath<JSXMemberExpression>) {
-                // 获取最左边的对象标识符
-                let current: any = path.node
-
-                while (current.type === "JSXMemberExpression") current = current.object
-
-                // 找到最左边的标识符后，添加到使用列表
-                if (current.type === "JSXIdentifier") usedIdentifiers.add(current.name)
+                addRootValueUsage(usages, path.node)
             },
 
             // 处理 TypeScript 类型引用
             TSTypeReference(path: NodePath<TSTypeReference>) {
-                const node = path.node
+                addRootTypeUsage(usages, path.node.typeName)
+            },
 
-                if (node.typeName.type === "Identifier") usedIdentifiers.add(node.typeName.name)
-                else {
-                    if (node.typeName.type === "TSQualifiedName") {
-                        // 处理 A.B.C 这种类型引用，只添加最左边的标识符
-                        let current: any = node.typeName
+            // 处理 TypeScript typeof 类型查询，如 type A = typeof a
+            TSTypeQuery(path: NodePath<TSTypeQuery>) {
+                addRootTypeUsage(usages, path.node.exprName)
+            },
 
-                        while (current.type === "TSQualifiedName") current = current.left
-
-                        if (current.type === "Identifier") usedIdentifiers.add(current.name)
-                    }
-                }
+            // 处理 interface/class 的 extends/implements 类型引用
+            TSExpressionWithTypeArguments(path: NodePath<TSExpressionWithTypeArguments>) {
+                addRootTypeUsage(usages, path.node.expression)
             },
 
             // 处理 export 语句中的标识符
@@ -78,7 +167,11 @@ export function analyzeUsedIdentifiers(code: string): Set<string> | null {
                 if (!node.source && node.specifiers) {
                     for (const specifier of node.specifiers) {
                         if (specifier.type === "ExportSpecifier") {
-                            if (specifier.local.type === "Identifier") usedIdentifiers.add(specifier.local.name)
+                            if (specifier.local.type === "Identifier") {
+                                const isTypeExport = node.exportKind === "type" || specifier.exportKind === "type"
+
+                                addUsage(usages, specifier.local.name, isTypeExport ? "type" : "value")
+                            }
                         }
                     }
                 }
@@ -90,6 +183,21 @@ export function analyzeUsedIdentifiers(code: string): Set<string> | null {
         // 当代码有语法错误时（如重复声明变量），返回 null 表示分析失败
         // 这样调用方可以跳过移除未使用导入的逻辑
         return null
+    }
+
+    return usages
+}
+
+/** 分析代码中使用的标识符 */
+export function analyzeUsedIdentifiers(code: string): Set<string> | null {
+    const usages = analyzeIdentifierUsages(code)
+
+    if (usages === null) return null
+
+    const usedIdentifiers = new Set<string>()
+
+    for (const [name, usage] of Array.from(usages.entries())) {
+        if (usage.type || usage.value) usedIdentifiers.add(name)
     }
 
     return usedIdentifiers
@@ -147,4 +255,42 @@ export function removeUnusedImportsFromStatements(importStatements: ImportStatem
     }
 
     return filteredStatements
+}
+
+/** 将仅用于类型位置的命名导入标记为 type */
+export function markTypeOnlyImportsFromStatements(importStatements: ImportStatement[], code: string): ImportStatement[] {
+    const usages = analyzeIdentifierUsages(code)
+
+    if (usages === null) return importStatements
+
+    return importStatements.map(statement => {
+        if (statement.isSideEffect || statement.isExport) return statement
+
+        let changed = false
+
+        const importContents = statement.importContents.map(content => {
+            if (content.type === "type" || content.name === "default" || content.name === "*") return content
+
+            const usedName = content.alias ?? content.name
+            const usage = usages.get(usedName)
+
+            if (usage?.type && !usage.value) {
+                changed = true
+
+                return {
+                    ...content,
+                    type: "type" as const,
+                }
+            }
+
+            return content
+        })
+
+        if (!changed) return statement
+
+        return {
+            ...statement,
+            importContents,
+        }
+    })
 }

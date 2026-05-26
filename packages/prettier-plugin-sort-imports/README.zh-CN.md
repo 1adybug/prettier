@@ -151,6 +151,10 @@ interface PluginConfig {
     sortSideEffect?: boolean
     /** 是否删除未使用的导入，默认为 false */
     removeUnusedImports?: boolean
+    /** 是否将仅用于类型位置的命名导入标记为 type，默认为 false */
+    markTypeOnlyImports?: boolean
+    /** 是否将全为 type 的命名导入合并为 import type/export type，默认为 true */
+    mergeTypeImports?: boolean
     /** 是否为 Node.js 内置模块自动添加/移除 node: 前缀 */
     nodeProtocol?: "add" | "remove"
 }
@@ -168,6 +172,8 @@ export default {
     sortSideEffect: false, // 是否对副作用导入排序
     groupSeparator: "", // 分组分隔符
     removeUnusedImports: false, // 是否删除未使用的导入
+    markTypeOnlyImports: false, // 是否为仅类型位置使用的命名导入添加 type 标记
+    mergeTypeImports: true, // 是否优先输出 import type { A, B }
     nodeProtocol: "add", // "add" 为添加 node: 前缀（"remove" 为移除）
 }
 ```
@@ -197,6 +203,8 @@ export default {
             groupSeparator: "",
             sortSideEffect: true,
             removeUnusedImports: false,
+            markTypeOnlyImports: false,
+            mergeTypeImports: true,
             nodeProtocol: "add",
         }),
     ],
@@ -369,6 +377,36 @@ function MyComponent() {
 - 导出语句（如 `export { x } from "module"`）不会被删除
 - 分析基于 AST，会识别代码中实际使用的标识符
 - 支持识别 JSX 组件、TypeScript 类型引用等
+
+### markTypeOnlyImports
+
+是否将仅用于类型位置的命名导入标记为 type，默认为 `false`。
+
+```ts
+// 排序前
+import { a } from "./a"
+
+export type A = typeof a
+
+// 排序后
+import type { a } from "./a"
+
+export type A = typeof a
+```
+
+此功能只基于当前文件 AST，不使用 TypeScript type checker。默认导入、命名空间导入、副作用导入和 re-export 语句不会被此选项转换。
+
+### mergeTypeImports
+
+是否将全为 type 的命名导入合并为 `import type` / `export type` 声明，默认为 `true`。
+
+```ts
+// mergeTypeImports: true
+import type { A, B } from "./a"
+
+// mergeTypeImports: false
+import { type A, type B } from "./a"
+```
 
 ### nodeProtocol
 

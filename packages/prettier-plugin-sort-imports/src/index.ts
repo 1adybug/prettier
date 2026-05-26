@@ -2,7 +2,7 @@ import { builtinModules, createRequire } from "node:module"
 
 import { format, ParserOptions, Plugin, Options as PrettierOptions } from "prettier"
 
-import { removeUnusedImportsFromStatements } from "./analyzer"
+import { markTypeOnlyImportsFromStatements, removeUnusedImportsFromStatements } from "./analyzer"
 import { formatGroups, formatImportStatements } from "./formatter"
 import { parseImports } from "./parser"
 import { groupImports, mergeImports, sortGroups, sortImports } from "./sorter"
@@ -64,6 +64,16 @@ export interface Options extends PrettierOptions {
      * @default false
      */
     removeUnusedImports?: boolean
+    /**
+     * 是否将仅用于类型位置的命名导入标记为 type。
+     * @default false
+     */
+    markTypeOnlyImports?: boolean
+    /**
+     * 是否将全为 type 的命名导入合并为 import type/export type。
+     * @default true
+     */
+    mergeTypeImports?: boolean
     /**
      * Whether to add/remove the node: prefix for Node.js builtin modules.
      * "add": add, "remove": remove, undefined: no change.
@@ -157,6 +167,8 @@ function preprocessImports(text: string, options: ParserOptions & Partial<Plugin
             groupSeparator: config.groupSeparator ?? optionsConfig.groupSeparator,
             sortSideEffect: config.sortSideEffect ?? optionsConfig.sortSideEffect ?? false,
             removeUnusedImports: config.removeUnusedImports ?? optionsConfig.removeUnusedImports ?? false,
+            markTypeOnlyImports: config.markTypeOnlyImports ?? optionsConfig.markTypeOnlyImports ?? false,
+            mergeTypeImports: config.mergeTypeImports ?? optionsConfig.mergeTypeImports ?? true,
             nodeProtocol: config.nodeProtocol ?? optionsConfig.nodeProtocol,
         }
 
@@ -167,6 +179,8 @@ function preprocessImports(text: string, options: ParserOptions & Partial<Plugin
         let processedImports = imports
 
         if (finalConfig.removeUnusedImports) processedImports = removeUnusedImportsFromStatements(imports, textWithoutImports)
+
+        if (finalConfig.markTypeOnlyImports) processedImports = markTypeOnlyImportsFromStatements(processedImports, textWithoutImports)
 
         if (finalConfig.nodeProtocol !== undefined) {
             processedImports = processedImports.map(statement => ({
@@ -191,7 +205,7 @@ function preprocessImports(text: string, options: ParserOptions & Partial<Plugin
             formattedImports = formatGroups(sortedGroups, finalConfig, options.trailingComma)
         } else
             // 否则直接格式化
-            formattedImports = formatImportStatements(mergedImports, options.trailingComma)
+            formattedImports = formatImportStatements(mergedImports, options.trailingComma, finalConfig.mergeTypeImports)
 
         // 获取导入块的起始位置（使用首个导入语句位置）
         const firstImport = imports[0]
@@ -293,6 +307,18 @@ function createPluginInstance(config: PluginConfig = {}): Plugin {
             category: "Import Sort",
             description: "�Ƿ�ɾ��δʹ�õĵ���",
             default: false,
+        },
+        markTypeOnlyImports: {
+            type: "boolean",
+            category: "Import Sort",
+            description: "Mark named imports used only in type positions as type-only imports",
+            default: false,
+        },
+        mergeTypeImports: {
+            type: "boolean",
+            category: "Import Sort",
+            description: "Merge all-type named imports into import type/export type declarations",
+            default: true,
         },
         nodeProtocol: {
             type: "string",

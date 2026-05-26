@@ -152,6 +152,10 @@ interface PluginConfig {
     sortSideEffect?: boolean
     /** Whether to remove unused imports, defaults to false */
     removeUnusedImports?: boolean
+    /** Whether to mark named imports used only in type positions as type-only imports, defaults to false */
+    markTypeOnlyImports?: boolean
+    /** Whether to merge all-type named imports into import type/export type declarations, defaults to true */
+    mergeTypeImports?: boolean
     /** Whether to add/remove the node: prefix for Node.js builtin modules */
     nodeProtocol?: "add" | "remove"
 }
@@ -169,6 +173,8 @@ export default {
     sortSideEffect: false, // Whether to sort side effect imports
     groupSeparator: "", // Group separator
     removeUnusedImports: false, // Whether to remove unused imports
+    markTypeOnlyImports: false, // Whether to add type markers for type-only usages
+    mergeTypeImports: true, // Whether to prefer import type { A, B }
     nodeProtocol: "add", // "add" to add node: prefix ("remove" to remove)
 }
 ```
@@ -201,6 +207,8 @@ export default {
             groupSeparator: "\n",
             sortSideEffect: true,
             removeUnusedImports: false,
+            markTypeOnlyImports: false,
+            mergeTypeImports: true,
             nodeProtocol: "add",
         }),
     ],
@@ -373,6 +381,36 @@ function MyComponent() {
 - Export statements (e.g., `export { x } from "module"`) will not be removed
 - Analysis is AST-based and identifies actually used identifiers in code
 - Supports identifying JSX components, TypeScript type references, etc.
+
+### markTypeOnlyImports
+
+Whether to mark named imports used only in type positions as type-only imports. Defaults to `false`.
+
+```ts
+// Before
+import { a } from "./a"
+
+export type A = typeof a
+
+// After
+import type { a } from "./a"
+
+export type A = typeof a
+```
+
+This is based on the current file's AST and does not use the TypeScript type checker. Default imports, namespace imports, side effect imports, and re-export declarations are not converted by this option.
+
+### mergeTypeImports
+
+Whether to merge all-type named imports into `import type`/`export type` declarations. Defaults to `true`.
+
+```ts
+// mergeTypeImports: true
+import type { A, B } from "./a"
+
+// mergeTypeImports: false
+import { type A, type B } from "./a"
+```
 
 ### nodeProtocol
 

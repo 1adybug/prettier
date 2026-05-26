@@ -1,5 +1,11 @@
 # @1adybug/prettier-plugin-block-padding
 
+## 0.0.17
+
+### Patch Changes
+
+- feat(sort-imports): add configurable type-only import handling
+
 ## 0.0.16
 
 ### Patch Changes

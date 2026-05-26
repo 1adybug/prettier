@@ -2,7 +2,16 @@ import type { ParserOptions } from "prettier"
 
 import { Group, ImportStatement, PluginConfig } from "./types" /** 格式化导入语句 */
 
-export function formatImportStatement(statement: ImportStatement, trailingComma?: ParserOptions["trailingComma"]): string {
+function removeTypePrefixFromNamedImport(item: string): string {
+    const lines = item.split("\n")
+    const lastIndex = lines.length - 1
+
+    lines[lastIndex] = lines[lastIndex].replace(/^(\s*)type\s+/, "$1")
+
+    return lines.join("\n")
+}
+
+export function formatImportStatement(statement: ImportStatement, trailingComma?: ParserOptions["trailingComma"], mergeTypeImports = true): string {
     const { path, isExport, isSideEffect, importContents, leadingComments, trailingComments, removedTrailingComments, emptyLinesAfterComments } = statement
 
     const lines: string[] = []
@@ -101,13 +110,14 @@ export function formatImportStatement(statement: ImportStatement, trailingComma?
 
     const allNamedImportsAreTypes = namedImports.every(c => c.type === "type")
     const hasDefaultOrNamespace = importContents.some(c => c.name === "default" || c.name === "*")
+    const shouldUseTypeOnlyDeclaration = mergeTypeImports && allNamedImportsAreTypes && !hasDefaultOrNamespace
 
     // 添加命名导入部分
     if (hasNamedImportComments && namedPartsWithComments.length > 0) {
         // 多行格式
         const keyword = isExport ? "export" : "import"
         // 只有在所有命名导入都是类型且没有默认导入/命名空间导入时才使用 type 关键字
-        const typeKeyword = allNamedImportsAreTypes && !hasDefaultOrNamespace ? "type " : ""
+        const typeKeyword = shouldUseTypeOnlyDeclaration ? "type " : ""
         const defaultPart = parts.length > 0 ? parts.join(", ") + ", " : ""
         const importStart = `${keyword} ${typeKeyword}${defaultPart}{`
         const importEnd = `} from "${path}"`
@@ -134,7 +144,7 @@ export function formatImportStatement(statement: ImportStatement, trailingComma?
 
         lines.push(importStart)
 
-        const formattedParts = [...namedPartsWithComments]
+        const formattedParts = shouldUseTypeOnlyDeclaration ? namedPartsWithComments.map(removeTypePrefixFromNamedImport) : [...namedPartsWithComments]
 
         if (shouldAddTrailingComma) formattedParts[formattedParts.length - 1] = formatWithTrailingComma(formattedParts[formattedParts.length - 1])
         lines.push(`    ${formattedParts.join(",\n    ")}`)
@@ -143,7 +153,7 @@ export function formatImportStatement(statement: ImportStatement, trailingComma?
         // 单行格式
         if (namedParts.length > 0) {
             // 如果所有命名导入都是类型且没有默认导入/命名空间导入
-            if (allNamedImportsAreTypes && !hasDefaultOrNamespace) {
+            if (shouldUseTypeOnlyDeclaration) {
                 // 使用 import type { A, B } 格式
                 // 移除每个导入项前面的 type 关键字
                 const cleanedParts = namedParts.map(part => part.replace(/^type /, ""))
@@ -158,7 +168,7 @@ export function formatImportStatement(statement: ImportStatement, trailingComma?
         const importClause = parts.join(", ")
 
         // 只有在所有命名导入都是类型且没有默认导入/命名空间导入时才使用 type 关键字
-        const typeKeyword = allNamedImportsAreTypes && !hasDefaultOrNamespace ? "type " : ""
+        const typeKeyword = shouldUseTypeOnlyDeclaration ? "type " : ""
         let importLine = ""
 
         if (isExport) importLine = `export ${typeKeyword}${importClause} from "${path}"`
@@ -205,13 +215,13 @@ export function formatGroups(groups: Group[], config: PluginConfig, trailingComm
         }
 
         // 格式化分组中的导入语句
-        for (const statement of group.importStatements) lines.push(formatImportStatement(statement, trailingComma))
+        for (const statement of group.importStatements) lines.push(formatImportStatement(statement, trailingComma, config.mergeTypeImports ?? true))
     }
 
     return lines.join("\n")
 }
 
 /** 格式化导入语句列表（不使用分组） */
-export function formatImportStatements(statements: ImportStatement[], trailingComma?: ParserOptions["trailingComma"]): string {
-    return statements.map(statement => formatImportStatement(statement, trailingComma)).join("\n")
+export function formatImportStatements(statements: ImportStatement[], trailingComma?: ParserOptions["trailingComma"], mergeTypeImports = true): string {
+    return statements.map(statement => formatImportStatement(statement, trailingComma, mergeTypeImports)).join("\n")
 }

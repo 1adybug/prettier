@@ -1,5 +1,11 @@
 # @1adybug/prettier-plugin-sort-imports
 
+## 0.0.31
+
+### Patch Changes
+
+- feat(sort-imports): add configurable type-only import handling
+
 ## 0.0.30
 
 ### Patch Changes
