@@ -1,5 +1,11 @@
 # @1adybug/prettier-plugin-sort-imports
 
+## 0.0.32
+
+### Patch Changes
+
+- fix(prettier): 修复 tailwind 插件失效的问题
+
 ## 0.0.31
 
 ### Patch Changes

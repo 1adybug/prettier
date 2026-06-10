@@ -1,1 +1,26 @@
-export { default } from "@1adybug/eslint"
+import { defineConfig } from "@1adybug/eslint"
+
+const defaultProjectFiles = ["packages/*/*.config.ts", "packages/*/tests/*.test.ts"]
+
+const config = defineConfig({
+    ignores: ["**/dist/**", "packages/prettier-plugin-remove-braces/example.js"],
+})
+
+export default config.map(item => {
+    const parserOptions = item.languageOptions?.parserOptions
+
+    if (parserOptions?.projectService !== true) return item
+
+    return {
+        ...item,
+        languageOptions: {
+            ...item.languageOptions,
+            parserOptions: {
+                ...parserOptions,
+                projectService: {
+                    allowDefaultProject: defaultProjectFiles,
+                },
+            },
+        },
+    }
+})

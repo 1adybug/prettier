@@ -1,5 +1,14 @@
 # @1adybug/prettier
 
+## 0.0.29
+
+### Patch Changes
+
+- fix(prettier): 修复 tailwind 插件失效的问题
+- Updated dependencies
+    - @1adybug/prettier-plugin-block-padding@0.0.18
+    - @1adybug/prettier-plugin-sort-imports@0.0.32
+
 ## 0.0.28
 
 ### Patch Changes

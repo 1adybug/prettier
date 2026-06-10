@@ -25,6 +25,29 @@ export interface PrintFn {
     (path: PrettierPathLike): Doc
 }
 
+interface SourceLocationLine {
+    line?: number
+}
+
+interface SourceLocation {
+    start?: SourceLocationLine
+    end?: SourceLocationLine
+}
+
+interface CommentNode {
+    loc?: SourceLocation
+}
+
+interface LocatableNode {
+    loc?: SourceLocation
+    comments?: CommentNode[]
+}
+
+interface PrintedChild {
+    doc: Doc
+    needPad: boolean
+}
+
 // 判断当前语句是否需要在前后添加空行（根据 README 规则）
 function shouldPadAroundStatement(stmt: NodeBase, childDoc: Doc): boolean {
     // TypeScript 类型声明：无条件留空
@@ -54,11 +77,8 @@ function shouldPadAroundStatement(stmt: NodeBase, childDoc: Doc): boolean {
 
 // 计算两个节点之间原始代码中的空行数
 function getOriginalEmptyLinesBetween(prevNode: NodeBase, currNode: NodeBase): number {
-    const anyPrev = prevNode as unknown as { loc?: { end?: { line?: number } } }
-    const anyCurr = currNode as unknown as {
-        loc?: { start?: { line?: number } }
-        comments?: Array<{ loc?: { start?: { line?: number } } }>
-    }
+    const anyPrev = prevNode as unknown as LocatableNode
+    const anyCurr = currNode as unknown as LocatableNode
 
     const prevEndLine = anyPrev.loc?.end?.line
     let currStartLine = anyCurr.loc?.start?.line
@@ -88,7 +108,7 @@ export function printStatementSequence(path: PrettierPathLike, print: PrintFn): 
     const body = Array.isArray(node.body) ? node.body : []
 
     // 先收集每个语句的 Doc 以及其是否需要留空
-    const children: { doc: Doc; needPad: boolean }[] = body.map((_, i) => {
+    const children: PrintedChild[] = body.map((_, i) => {
         const childDoc = path.call(p => print(p), "body", i) as unknown as Doc
         const needPad = shouldPadAroundStatement(body[i], childDoc)
         return { doc: childDoc, needPad }

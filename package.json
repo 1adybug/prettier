@@ -24,7 +24,7 @@
         "soda-nodejs": "^0.8.9"
     },
     "devDependencies": {
-        "@1adybug/eslint": "^0.0.10",
+        "@1adybug/eslint": "^0.0.11",
         "@1adybug/prettier": "workspace:*",
         "@changesets/cli": "^2.29.8",
         "@types/node": "catalog:",

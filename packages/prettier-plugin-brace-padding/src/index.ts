@@ -6,6 +6,10 @@ import { printStatementSequence } from "./helpers/sequence"
 const { builders } = doc
 const { hardline, indent } = builders
 
+interface NodeWithType {
+    type?: string
+}
+
 function createPatchedEstreePrinter(base: Printer): Printer {
     function print(path: AstPath, options: ParserOptions, print: (path: AstPath) => Doc, args?: unknown): Doc {
         const node = path.node
@@ -113,7 +117,7 @@ function createPatchedEstreePrinter(base: Printer): Printer {
     }
 
     function willPrintOwnComments(path: AstPath): boolean {
-        const node = path.node as { type?: string } | null
+        const node = path.node as NodeWithType | null
 
         if (node && (node.type === "Program" || node.type === "TSModuleBlock" || node.type === "BlockStatement" || node.type === "ClassBody")) {
             return (

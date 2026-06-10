@@ -64,11 +64,18 @@ function getResolveAlias(filepath: string) {
 }
 
 function hasDependency(dependency: string) {
+    const projectRequire = createRequire(join(process.cwd(), "package.json"))
+
     try {
         require.resolve(dependency)
         return true
     } catch (error) {
-        return false
+        try {
+            projectRequire.resolve(dependency)
+            return true
+        } catch (error) {
+            return false
+        }
     }
 }
 

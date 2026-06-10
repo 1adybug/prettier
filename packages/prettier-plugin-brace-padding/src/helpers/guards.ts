@@ -26,6 +26,10 @@ export interface ExpressionStatementNode extends NodeBase {
     expression: NodeBase
 }
 
+export interface ExportNamedDeclarationNode extends NodeBase {
+    declaration?: NodeBase
+}
+
 // 判断是否块状语句（会形成作用域或代码块）
 export function isBlockLikeStatement(node: NodeBase): boolean {
     if (!node || typeof node.type !== "string") return false
@@ -43,9 +47,9 @@ export function isBlockLikeStatement(node: NodeBase): boolean {
         case "SwitchStatement":
         case "FunctionDeclaration":
         case "ClassDeclaration":
-        // TypeScript: 命名空间/模块声明也视作"块状语句"
+        // fallthrough: TypeScript module declarations are also block-like.
         case "TSModuleDeclaration":
-        // 类成员中的方法
+        // fallthrough: class methods are block-like too.
         case "MethodDefinition":
         case "ClassMethod":
             return true
@@ -63,10 +67,10 @@ export function isClassMember(node: NodeBase): boolean {
         // 类属性
         case "PropertyDefinition":
         case "ClassProperty":
-        // 类方法
+        // fallthrough: class methods are also class members.
         case "MethodDefinition":
         case "ClassMethod":
-        // 访问器
+        // fallthrough: TypeScript abstract members are class members.
         case "TSAbstractMethodDefinition":
         case "TSAbstractPropertyDefinition":
             return true
@@ -112,7 +116,7 @@ export function isTsTypeDeclaration(node: NodeBase): boolean {
 
     // export 包裹的 TS 类型声明（export interface/type/enum）
     if (node.type === "ExportNamedDeclaration") {
-        const anyNode = node as unknown as { declaration?: NodeBase }
+        const anyNode = node as unknown as ExportNamedDeclarationNode
         const decl = anyNode.declaration
         if (!decl) return false
         return decl.type === "TSInterfaceDeclaration" || decl.type === "TSTypeAliasDeclaration" || decl.type === "TSEnumDeclaration"

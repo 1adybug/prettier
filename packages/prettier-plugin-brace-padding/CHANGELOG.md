@@ -1,5 +1,11 @@
 # @1adybug/prettier-plugin-block-padding
 
+## 0.0.18
+
+### Patch Changes
+
+- fix(prettier): 修复 tailwind 插件失效的问题
+
 ## 0.0.17
 
 ### Patch Changes

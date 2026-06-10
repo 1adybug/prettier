@@ -1,6 +1,6 @@
 import { builtinModules, createRequire } from "node:module"
 
-import { format, ParserOptions, Plugin, Options as PrettierOptions } from "prettier"
+import type { Parser, ParserOptions, Plugin, Options as PrettierOptions } from "prettier"
 
 import { markTypeOnlyImportsFromStatements, removeUnusedImportsFromStatements } from "./analyzer"
 import { formatGroups, formatImportStatements } from "./formatter"
@@ -21,6 +21,11 @@ export * from "./types"
 const require = createRequire(import.meta.url)
 
 const NODE_BUILTIN_MODULES = new Set(builtinModules.map(moduleName => (moduleName.startsWith("node:") ? moduleName.slice(5) : moduleName)))
+
+interface ImportRange {
+    start: number
+    end: number
+}
 
 function isNodeBuiltinModule(modulePath: string): boolean {
     const normalizedPath = modulePath.startsWith("node:") ? modulePath.slice(5) : modulePath
@@ -98,7 +103,7 @@ export interface Options extends PrettierOptions {
     sortImportContent?: SortImportContentFunction
 }
 
-function getImportRanges(imports: ImportStatement[]): Array<{ start: number; end: number }> {
+function getImportRanges(imports: ImportStatement[]): ImportRange[] {
     const ranges = imports
         .map(statement => ({
             start: statement.start ?? 0,
@@ -107,7 +112,7 @@ function getImportRanges(imports: ImportStatement[]): Array<{ start: number; end
         .filter(range => range.end > range.start)
         .sort((a, b) => a.start - b.start)
 
-    const merged: Array<{ start: number; end: number }> = []
+    const merged: ImportRange[] = []
 
     for (const range of ranges) {
         const last = merged[merged.length - 1]
@@ -123,7 +128,7 @@ function getImportRanges(imports: ImportStatement[]): Array<{ start: number; end
     return merged
 }
 
-function removeRangesFromText(text: string, ranges: Array<{ start: number; end: number }>): string {
+function removeRangesFromText(text: string, ranges: ImportRange[]): string {
     if (ranges.length === 0) return text
 
     let result = ""
@@ -248,15 +253,33 @@ const {
 // 用于检测递归调用的标记
 const PROCESSING_MARKER = Symbol("prettier-plugin-sort-imports-processing")
 
+type ParserLike = Parser | (() => Parser | Promise<Parser>) | undefined
+
+async function resolveParser(parser: ParserLike) {
+    if (typeof parser === "function") return parser()
+    return parser
+}
+
+async function resolveParsers(parserName: string, plugins: Plugin[]) {
+    const parsers: Parser[] = []
+
+    for (const plugin of plugins) {
+        const parser = await resolveParser(plugin?.parsers?.[parserName] as ParserLike)
+        if (parser) parsers.push(parser)
+    }
+
+    return parsers
+}
+
+function getParserObject(parser: ParserLike) {
+    if (!parser || typeof parser === "function") return undefined
+    return parser
+}
+
 /** 创建合并后的 preprocess 函数 */
 function createCombinedPreprocess(parserName: string, config: PluginConfig) {
     // 收集需要 preprocess 的插件（如 tailwindcss）
     const otherPlugins = config.otherPlugins || []
-
-    const pluginsWithPreprocess = otherPlugins.filter(plugin => {
-        const parser = plugin?.parsers?.[parserName]
-        return parser?.preprocess && typeof parser.preprocess === "function"
-    })
 
     return async function combinedPreprocess(text: string, options: any): Promise<string> {
         // 检测递归调用，避免无限循环
@@ -265,20 +288,14 @@ function createCombinedPreprocess(parserName: string, config: PluginConfig) {
         // 先执行我们的 import 排序
         let processedText = preprocessImports(text, options, config)
 
-        // 如果没有其他需要 preprocess 的插件，直接返回
-        if (pluginsWithPreprocess.length === 0) return processedText
-
-        // 对于需要 preprocess 的插件（如 tailwindcss），
-        // 使用 prettier.format 来触发它们的 preprocess
-        // 因为 tailwindcss 的 preprocess 需要 prettier 的完整环境才能工作
+        // Prettier 支持懒加载 parser，tailwindcss 0.8 的 parser 就是异步工厂函数。
+        // 因此这里需要先解析 parser，再链式调用它们自己的 preprocess。
         try {
-            processedText = await format(processedText, {
-                ...options,
-                // 只使用需要 preprocess 的插件
-                plugins: pluginsWithPreprocess,
-                // 标记正在处理中，避免递归
-                [PROCESSING_MARKER]: true,
-            })
+            const parsers = await resolveParsers(parserName, otherPlugins)
+
+            for (const parser of parsers) {
+                if (typeof parser.preprocess === "function") processedText = await parser.preprocess(processedText, options)
+            }
         } catch (error) {
             console.warn("Failed to apply other plugins preprocess:", error instanceof Error ? error.message : String(error))
         }
@@ -357,15 +374,15 @@ function createPluginInstance(config: PluginConfig = {}): Plugin {
         let merged = { ...baseParser }
 
         // 收集所有插件的 __transformAST 函数
-        const transformASTFunctions: Array<(ast: any, options: any) => any> = []
+        const staticTransformASTFunctions: Array<(ast: any, options: any) => any> = []
 
         // 合并其他插件对该 parser 的修改
         for (const plugin of otherPlugins) {
-            const otherParser = plugin?.parsers?.[parserName] as any
+            const otherParser = getParserObject(plugin?.parsers?.[parserName] as ParserLike) as any
 
             if (otherParser) {
                 // 收集 __transformAST 函数用于链式调用
-                if (typeof otherParser.__transformAST === "function") transformASTFunctions.push(otherParser.__transformAST)
+                if (typeof otherParser.__transformAST === "function") staticTransformASTFunctions.push(otherParser.__transformAST)
 
                 // 保留其他插件的所有属性（parse, astFormat, print, etc.）
                 // 但 preprocess 由我们统一管理，parse 和 __transformAST 也需要特殊处理
@@ -374,25 +391,34 @@ function createPluginInstance(config: PluginConfig = {}): Plugin {
             }
         }
 
-        // 如果有 __transformAST 函数，创建链式调用的 parse 函数
-        if (transformASTFunctions.length > 0) {
-            const originalParse = baseParser.parse
+        const originalParse = baseParser.parse
 
-            merged.parse = function chainedParse(text: string, options: any) {
-                // 先调用原始 parse 获取 AST
-                let ast = originalParse(text, options)
+        merged.parse = async function chainedParse(text: string, options: any) {
+            const parsers = await resolveParsers(parserName, otherPlugins)
 
-                // 然后依次调用所有插件的 __transformAST
-                for (const transformAST of transformASTFunctions) {
-                    try {
-                        ast = transformAST(ast, options)
-                    } catch (error) {
-                        console.warn("Plugin transformAST failed:", error instanceof Error ? error.message : String(error))
-                    }
+            // 像 prettier-plugin-tailwindcss 0.8 这样的插件会在 parse 阶段修改 AST。
+            // 这类 parser 没有 __transformAST，必须显式调用它自己的 parse 才能生效。
+            const parseParser = parsers.find(parser => typeof (parser as any).__transformAST !== "function" && parser.parse !== originalParse)
+
+            let ast = parseParser ? await parseParser.parse(text, options) : await originalParse(text, options)
+
+            const transformASTFunctions = [
+                ...staticTransformASTFunctions,
+                ...parsers
+                    .map(parser => (parser as any).__transformAST)
+                    .filter(transformAST => typeof transformAST === "function" && !staticTransformASTFunctions.includes(transformAST)),
+            ]
+
+            // 然后依次调用所有插件的 __transformAST
+            for (const transformAST of transformASTFunctions) {
+                try {
+                    ast = await transformAST(ast, options)
+                } catch (error) {
+                    console.warn("Plugin transformAST failed:", error instanceof Error ? error.message : String(error))
                 }
-
-                return ast
             }
+
+            return ast
         }
 
         // 最后设置我们的 preprocess（它会链式调用所有插件的 preprocess）

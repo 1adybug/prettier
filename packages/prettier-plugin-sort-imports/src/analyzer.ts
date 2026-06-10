@@ -12,8 +12,12 @@ import {
 
 import { ImportContent, ImportStatement } from "./types"
 
+interface TraverseModule {
+    default: typeof traverseModule
+}
+
 // 处理 ESM/CommonJS 兼容性
-const traverse = typeof traverseModule === "function" ? traverseModule : (traverseModule as { default: typeof traverseModule }).default
+const traverse = typeof traverseModule === "function" ? traverseModule : (traverseModule as TraverseModule).default
 
 export interface IdentifierUsage {
     /** 是否在类型位置使用 */
