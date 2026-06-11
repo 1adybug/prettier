@@ -21,7 +21,7 @@
         "check": "bun scripts/tsc.mjs"
     },
     "dependencies": {
-        "soda-nodejs": "^0.8.9"
+        "soda-nodejs": "^0.8.15"
     },
     "devDependencies": {
         "@1adybug/eslint": "^0.0.11",
@@ -31,7 +31,7 @@
         "@types/node": "catalog:",
         "eslint": "^9.39.3",
         "husky": "^9.1.7",
-        "lint-staged": "^17.0.5",
+        "lint-staged": "^17.0.7",
         "prettier": "catalog:",
         "typescript": "^6.0.3"
     },

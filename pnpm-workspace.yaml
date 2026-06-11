@@ -2,5 +2,5 @@ packages:
     - packages/*
 
 catalog:
-    "@types/node": ^24.10.14
-    prettier: ^3.8.1
+    "@types/node": ^24.13.2
+    prettier: ^3.8.4
