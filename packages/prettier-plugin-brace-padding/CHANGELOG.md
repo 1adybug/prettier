@@ -1,5 +1,11 @@
 # @1adybug/prettier-plugin-block-padding
 
+## 0.0.19
+
+### Patch Changes
+
+- fix: make leading semicolon formatting idempotent
+
 ## 0.0.18
 
 ### Patch Changes

@@ -46,6 +46,11 @@ interface LocatableNode {
 interface PrintedChild {
     doc: Doc
     needPad: boolean
+    originalIndex: number
+}
+
+function isPrintableStatement(stmt: NodeBase): boolean {
+    return stmt.type !== "EmptyStatement"
 }
 
 // 判断当前语句是否需要在前后添加空行（根据 README 规则）
@@ -106,12 +111,13 @@ export function printStatementSequence(path: PrettierPathLike, print: PrintFn): 
     const parts: Doc[] = []
 
     const body = Array.isArray(node.body) ? node.body : []
+    const printableStatements = body.map((stmt, index) => ({ stmt, index })).filter(({ stmt }) => isPrintableStatement(stmt))
 
     // 先收集每个语句的 Doc 以及其是否需要留空
-    const children: PrintedChild[] = body.map((_, i) => {
-        const childDoc = path.call(p => print(p), "body", i) as unknown as Doc
-        const needPad = shouldPadAroundStatement(body[i], childDoc)
-        return { doc: childDoc, needPad }
+    const children: PrintedChild[] = printableStatements.map(({ stmt, index }) => {
+        const childDoc = path.call(p => print(p), "body", index) as unknown as Doc
+        const needPad = shouldPadAroundStatement(stmt, childDoc)
+        return { doc: childDoc, needPad, originalIndex: index }
     })
 
     for (let i = 0; i < children.length; i++) {
@@ -120,13 +126,19 @@ export function printStatementSequence(path: PrettierPathLike, print: PrintFn): 
 
         if (i > 0) {
             // 计算原始代码中的空行数
-            const originalEmptyLines = getOriginalEmptyLinesBetween(body[i - 1], body[i])
+            const previousStatement = body[prev.originalIndex]
+            const currentStatement = body[children[i].originalIndex]
+            const originalEmptyLines = getOriginalEmptyLinesBetween(previousStatement, currentStatement)
 
             // 计算插件规则要求的空行数（0 或 1）
             let requiredEmptyLines = needPad || (prev && prev.needPad) ? 1 : 0
 
             // 特殊处理：类属性和类方法之间应该添加空行（用于分隔不同类型的成员）
-            if ((isClassProperty(body[i - 1]) && isClassMethod(body[i])) || (isClassMethod(body[i - 1]) && isClassProperty(body[i]))) requiredEmptyLines = 1
+            if (
+                (isClassProperty(previousStatement) && isClassMethod(currentStatement)) ||
+                (isClassMethod(previousStatement) && isClassProperty(currentStatement))
+            )
+                requiredEmptyLines = 1
 
             // 取两者的最大值，保留原有空行的同时满足插件规则
             // 但限制最多 1 个空行，与 prettier 默认行为保持一致

@@ -40,4 +40,12 @@ describe("tailwindcss", () => {
 
         expect(result).toBe(`;<div className="flex h-full w-full bg-red-500 p-4"></div>\n`)
     })
+
+    test("keeps leading semicolon protection idempotent", async () => {
+        const first = await formatCode(`[]`)
+        const second = await formatCode(first)
+
+        expect(first).toBe(`;[]\n`)
+        expect(second).toBe(first)
+    })
 })
