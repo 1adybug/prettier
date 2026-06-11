@@ -1,4 +1,4 @@
-import { Plugin } from "prettier"
+import type { Plugin } from "prettier"
 
 /** 导入内容 */
 export interface ImportContent {

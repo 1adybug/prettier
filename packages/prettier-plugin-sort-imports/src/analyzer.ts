@@ -1,6 +1,6 @@
 import { parse } from "@babel/parser"
-import traverseModule, { NodePath } from "@babel/traverse"
-import {
+import traverseModule, { type NodePath } from "@babel/traverse"
+import type {
     ExportNamedDeclaration,
     Identifier,
     JSXIdentifier,
@@ -10,7 +10,7 @@ import {
     TSTypeReference,
 } from "@babel/types"
 
-import { ImportContent, ImportStatement } from "./types"
+import type { ImportContent, ImportStatement } from "./types"
 
 interface TraverseModule {
     default: typeof traverseModule

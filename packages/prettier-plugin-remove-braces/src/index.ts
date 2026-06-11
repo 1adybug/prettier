@@ -1,6 +1,6 @@
 import { createRequire } from "node:module"
 
-import { format, ParserOptions, Plugin, Options as PrettierOptions, SupportLanguage } from "prettier"
+import { type ParserOptions, type Plugin, type Options as PrettierOptions, type SupportLanguage, format } from "prettier"
 
 const require = createRequire(import.meta.url)
 

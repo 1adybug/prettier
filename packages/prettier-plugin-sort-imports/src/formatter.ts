@@ -1,6 +1,6 @@
 import type { ParserOptions } from "prettier"
 
-import { Group, ImportStatement, PluginConfig } from "./types" /** 格式化导入语句 */
+import type { Group, ImportStatement, PluginConfig } from "./types" /** 格式化导入语句 */
 
 function removeTypePrefixFromNamedImport(item: string): string {
     const lines = item.split("\n")

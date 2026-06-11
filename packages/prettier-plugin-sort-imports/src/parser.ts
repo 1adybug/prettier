@@ -1,7 +1,7 @@
 import { parse } from "@babel/parser"
-import { Comment, ExportAllDeclaration, ExportNamedDeclaration, ImportDeclaration } from "@babel/types"
+import type { Comment, ExportAllDeclaration, ExportNamedDeclaration, ImportDeclaration } from "@babel/types"
 
-import { ImportContent, ImportStatement } from "./types"
+import type { ImportContent, ImportStatement } from "./types"
 
 /** 解析导入语句 */
 

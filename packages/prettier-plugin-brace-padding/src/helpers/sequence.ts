@@ -1,6 +1,8 @@
 import { type Doc, doc } from "prettier"
 
 import {
+    type NodeBase,
+    type StatementContainer,
     hasOtherBlockExpression,
     hasTopLevelObjectOrArrayLiteral,
     isBlockLikeStatement,
@@ -8,8 +10,6 @@ import {
     isClassMethod,
     isClassProperty,
     isTsTypeDeclaration,
-    NodeBase,
-    StatementContainer,
 } from "./guards.js"
 
 const { builders, utils } = doc

@@ -1,4 +1,4 @@
-import { Group, ImportContent, ImportStatement, PluginConfig } from "./types"
+import type { Group, ImportContent, ImportStatement, PluginConfig } from "./types"
 
 type ImportType = "module" | "alias" | "relative"
 
