@@ -37,22 +37,22 @@
     },
     "dependencies": {
         "@eslint/js": "^9.39.4",
-        "eslint-config-next": "^16.1.6",
-        "eslint-plugin-n": "^17.24.0",
+        "eslint-config-next": "^16.2.10",
+        "eslint-plugin-n": "^18.2.1",
         "eslint-plugin-react-hooks": "^7.0.1",
-        "eslint-plugin-react-refresh": "^0.5.2",
-        "globals": "^17.4.0",
-        "typescript-eslint": "^8.60.0"
+        "eslint-plugin-react-refresh": "^0.5.3",
+        "globals": "^17.7.0",
+        "typescript-eslint": "^8.63.0"
     },
     "devDependencies": {
-        "@1adybug/prettier": "^0.0.28",
+        "@1adybug/prettier": "^0.0.31",
         "@eslint/config-helpers": "^0.6.0",
         "@eslint/core": "^1.1.1",
-        "@rslib/core": "^0.21.5",
+        "@rslib/core": "^0.23.2",
         "@types/node": "^24.12.0",
         "husky": "^9.1.7",
-        "lint-staged": "^17.0.5",
-        "prettier": "^3.8.1",
+        "lint-staged": "^17.0.8",
+        "prettier": "^3.9.4",
         "typescript": "^6.0.3"
     },
     "peerDependencies": {

@@ -82,6 +82,10 @@ type FeatureInput<T extends BaseFeatureOptions = BaseFeatureOptions> = boolean |
 
 type FeatureExtend = ExtendsElement
 
+type NodePluginRuntime = {
+    configs: Record<string, unknown>
+}
+
 export type NodePreset = keyof typeof nodePresetToConfigKey
 
 function hasDependency(dependency: string) {
@@ -417,7 +421,7 @@ export function defineConfig({ next, react, node, target, directories, ignores, 
 
     if (nodeFeature.enabled) {
         if (nodeFeature.recommended) {
-            const nodePlugin = requireCached<typeof import("eslint-plugin-n")>("eslint-plugin-n")
+            const nodePlugin = requireCached<NodePluginRuntime>("eslint-plugin-n")
             const preset = nodeFeature.options.preset ?? "script"
             const nodePresetConfig = nodePlugin.configs[nodePresetToConfigKey[preset]]
             configWithExtends.push(...createScopedExtends(normalizeUnknownExtends(nodePresetConfig), nodeScopes))

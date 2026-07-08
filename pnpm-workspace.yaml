@@ -1,0 +1,9 @@
+allowBuilds:
+    core-js: true
+    unrs-resolver: true
+
+minimumReleaseAgeExclude:
+    - "@1adybug/prettier"
+    - "@1adybug/prettier-plugin-block-padding"
+    - "@1adybug/prettier-plugin-remove-braces"
+    - "@1adybug/prettier-plugin-sort-imports"
