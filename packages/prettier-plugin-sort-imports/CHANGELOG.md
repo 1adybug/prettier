@@ -1,5 +1,11 @@
 # @1adybug/prettier-plugin-sort-imports
 
+## 0.0.33
+
+### Patch Changes
+
+- fix(prettier-plugin-block-padding): Fix option forwarding in the block-padding printer comment hook so expression statements with leading comments format correctly when `semi` is false.
+
 ## 0.0.32
 
 ### Patch Changes

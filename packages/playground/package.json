@@ -1,6 +1,6 @@
 {
     "name": "playground",
-    "version": "1.0.3",
+    "version": "1.0.4",
     "private": true,
     "type": "module",
     "scripts": {
@@ -12,8 +12,8 @@
         "fg": "npm run format && git add . && git commit -m \"✨feature: format\""
     },
     "dependencies": {
-        "deepsea-components": "^5.18.9",
-        "deepsea-tools": "^5.48.2",
+        "deepsea-components": "^5.18.11",
+        "deepsea-tools": "^5.48.4",
         "react": "^19.2.7",
         "react-dom": "^19.2.7"
     },
@@ -21,7 +21,7 @@
         "@1adybug/prettier": "workspace:*",
         "@eslint/js": "^9.39.2",
         "@rsbuild/core": "^2.0.11",
-        "@rsbuild/plugin-babel": "^1.2.1",
+        "@rsbuild/plugin-babel": "^2.0.1",
         "@rsbuild/plugin-react": "^2.0.1",
         "@rsbuild/plugin-svgr": "^2.0.3",
         "@types/node": "^24.13.2",

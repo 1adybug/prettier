@@ -27,7 +27,6 @@
         "@1adybug/eslint": "^0.0.11",
         "@1adybug/prettier": "workspace:*",
         "@changesets/cli": "^2.29.8",
-        "@types/bun": "^1.3.14",
         "@types/node": "catalog:",
         "eslint": "^9.39.3",
         "husky": "^9.1.7",

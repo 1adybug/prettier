@@ -1,5 +1,11 @@
 # playground
 
+## 1.0.4
+
+### Patch Changes
+
+- fix(prettier-plugin-block-padding): Fix option forwarding in the block-padding printer comment hook so expression statements with leading comments format correctly when `semi` is false.
+
 ## 1.0.3
 
 ### Patch Changes

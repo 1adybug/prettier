@@ -19,6 +19,7 @@ export default config.map(item => {
                 ...parserOptions,
                 projectService: {
                     allowDefaultProject: defaultProjectFiles,
+                    maximumDefaultProjectFileMatchCount_THIS_WILL_SLOW_DOWN_LINTING: 16,
                 },
             },
         },

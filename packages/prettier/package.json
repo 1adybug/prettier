@@ -1,6 +1,6 @@
 {
     "name": "@1adybug/prettier",
-    "version": "0.0.30",
+    "version": "0.0.31",
     "description": "推荐的 Prettier 配置",
     "keywords": [
         "prettier",
@@ -34,7 +34,7 @@
     "scripts": {
         "build": "rslib build",
         "dev": "rslib build --watch",
-        "test": "bun test",
+        "test": "nub --test tests/*.test.ts",
         "prepublishOnly": "npm run build"
     },
     "publishConfig": {
@@ -49,7 +49,7 @@
         "tsconfig-paths": "^4.2.0"
     },
     "devDependencies": {
-        "@rslib/core": "^0.22.0",
+        "@rslib/core": "^0.23.2",
         "@types/node": "^24.13.2",
         "typescript": "^6.0.3"
     },

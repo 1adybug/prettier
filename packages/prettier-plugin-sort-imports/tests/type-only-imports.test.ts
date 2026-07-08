@@ -1,4 +1,6 @@
-import { describe, expect, test } from "bun:test"
+import assert from "node:assert/strict"
+import { describe, test } from "node:test"
+
 import { format } from "prettier"
 
 import { createPlugin } from "../src/index"
@@ -22,10 +24,13 @@ type B = A
             { markTypeOnlyImports: true },
         )
 
-        expect(result).toBe(`import type { A } from "./a"
+        assert.equal(
+            result,
+            `import type { A } from "./a"
 
 type B = A
-`)
+`,
+        )
     })
 
     test("marks value exports used only in typeof type queries", async () => {
@@ -38,10 +43,13 @@ export type A = typeof a
             { markTypeOnlyImports: true },
         )
 
-        expect(result).toBe(`import type { a } from "./a"
+        assert.equal(
+            result,
+            `import type { a } from "./a"
 
 export type A = typeof a
-`)
+`,
+        )
     })
 
     test("keeps value imports when the binding is used at runtime", async () => {
@@ -52,11 +60,14 @@ export type A = typeof a
 console.log(a)
 `)
 
-        expect(result).toBe(`import { a } from "./a"
+        assert.equal(
+            result,
+            `import { a } from "./a"
 
 export type A = typeof a
 console.log(a)
-`)
+`,
+        )
     })
 
     test("keeps type-only usages unchanged by default", async () => {
@@ -66,10 +77,13 @@ import { A } from "./a"
 type B = A
 `)
 
-        expect(result).toBe(`import { A } from "./a"
+        assert.equal(
+            result,
+            `import { A } from "./a"
 
 type B = A
-`)
+`,
+        )
     })
 
     test("can keep specifier-level type markers instead of import type", async () => {
@@ -82,10 +96,13 @@ type C = A | B
             { markTypeOnlyImports: true, mergeTypeImports: false },
         )
 
-        expect(result).toBe(`import { type A, type B } from "./a"
+        assert.equal(
+            result,
+            `import { type A, type B } from "./a"
 
 type C = A | B
-`)
+`,
+        )
     })
 
     test("handles aliased imports", async () => {
@@ -98,10 +115,13 @@ type A = typeof value
             { markTypeOnlyImports: true },
         )
 
-        expect(result).toBe(`import type { a as value } from "./a"
+        assert.equal(
+            result,
+            `import type { a as value } from "./a"
 
 type A = typeof value
-`)
+`,
+        )
     })
 
     test("works with removeUnusedImports", async () => {
@@ -114,10 +134,13 @@ type A = typeof a
             { markTypeOnlyImports: true, removeUnusedImports: true },
         )
 
-        expect(result).toBe(`import type { a } from "./a"
+        assert.equal(
+            result,
+            `import type { a } from "./a"
 
 type A = typeof a
-`)
+`,
+        )
     })
 
     test("preserves specifier comments when merging type imports", async () => {
@@ -133,12 +156,15 @@ type B = A
             { markTypeOnlyImports: true },
         )
 
-        expect(result).toBe(`import type {
+        assert.equal(
+            result,
+            `import type {
   // useful
   A,
 } from "./a"
 
 type B = A
-`)
+`,
+        )
     })
 })

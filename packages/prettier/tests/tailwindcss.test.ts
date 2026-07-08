@@ -1,15 +1,17 @@
-import { resolve } from "node:path"
-import { pathToFileURL } from "node:url"
+import assert from "node:assert/strict"
+import { dirname, resolve } from "node:path"
+import { describe, test } from "node:test"
+import { fileURLToPath, pathToFileURL } from "node:url"
 
-import { describe, expect, test } from "bun:test"
 import { type Plugin, format } from "prettier"
 
 export interface PrettierModule {
     default: Plugin
 }
 
-const playgroundDir = resolve("../playground")
-const pluginUrl = pathToFileURL(resolve("src/index.ts")).href
+const packageDir = resolve(dirname(fileURLToPath(import.meta.url)), "..")
+const playgroundDir = resolve(packageDir, "../playground")
+const pluginUrl = pathToFileURL(resolve(packageDir, "src/index.ts")).href
 
 async function loadPlugin() {
     const cwd = process.cwd()
@@ -38,14 +40,14 @@ describe("tailwindcss", () => {
     test("sorts className through the bundled tailwindcss plugin", async () => {
         const result = await formatCode(`<div className="w-full h-full flex bg-red-500 p-4"></div>`)
 
-        expect(result).toBe(`;<div className="flex h-full w-full bg-red-500 p-4"></div>\n`)
+        assert.equal(result, `;<div className="flex h-full w-full bg-red-500 p-4"></div>\n`)
     })
 
     test("keeps leading semicolon protection idempotent", async () => {
         const first = await formatCode(`[]`)
         const second = await formatCode(first)
 
-        expect(first).toBe(`;[]\n`)
-        expect(second).toBe(first)
+        assert.equal(first, `;[]\n`)
+        assert.equal(second, first)
     })
 })

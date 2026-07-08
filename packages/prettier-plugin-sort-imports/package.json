@@ -1,6 +1,6 @@
 {
     "name": "@1adybug/prettier-plugin-sort-imports",
-    "version": "0.0.32",
+    "version": "0.0.33",
     "description": "一个 Prettier 插件，用于对 JavaScript/TypeScript 文件的导入语句进行分组和排序",
     "keywords": [
         "prettier",
@@ -40,8 +40,8 @@
         "build": "rslib build",
         "dev": "rslib build --watch",
         "prepublishOnly": "npm run build",
-        "test": "bun test",
-        "test:watch": "bun test --watch"
+        "test": "nub --test tests/*.test.ts",
+        "test:watch": "nub --test --watch tests/*.test.ts"
     },
     "publishConfig": {
         "access": "public",
@@ -54,10 +54,9 @@
         "@babel/types": "^7.28.6"
     },
     "devDependencies": {
-        "@rslib/core": "^0.22.0",
+        "@rslib/core": "^0.23.2",
         "@types/babel__core": "^7.20.5",
         "@types/babel__traverse": "^7.28.0",
-        "@types/bun": "latest",
         "@types/node": "^24.13.2",
         "json5": "^2.2.3",
         "supports-color": "^10.2.2",

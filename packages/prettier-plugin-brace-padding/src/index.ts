@@ -10,8 +10,12 @@ interface NodeWithType {
     type?: string
 }
 
+type WillPrintOwnComments = (path: AstPath, options?: ParserOptions) => boolean
+
+type Print = Parameters<Printer["print"]>[2]
+
 function createPatchedEstreePrinter(base: Printer): Printer {
-    function print(path: AstPath, options: ParserOptions, print: (path: AstPath) => Doc, args?: unknown): Doc {
+    function print(path: AstPath, options: ParserOptions, print: Print, args?: unknown): Doc {
         const node = path.node
         if (!node) return ""
 
@@ -116,7 +120,7 @@ function createPatchedEstreePrinter(base: Printer): Printer {
         return base.print(path, options, print)
     }
 
-    function willPrintOwnComments(path: AstPath): boolean {
+    function willPrintOwnComments(path: AstPath, options?: ParserOptions): boolean {
         const node = path.node as NodeWithType | null
 
         if (node && (node.type === "Program" || node.type === "TSModuleBlock" || node.type === "BlockStatement" || node.type === "ClassBody")) {
@@ -126,7 +130,8 @@ function createPatchedEstreePrinter(base: Printer): Printer {
             )
         }
 
-        return typeof base.willPrintOwnComments === "function" ? base.willPrintOwnComments(path) : false
+        const baseWillPrintOwnComments = base.willPrintOwnComments as WillPrintOwnComments | undefined
+        return typeof baseWillPrintOwnComments === "function" ? baseWillPrintOwnComments(path, options) : false
     }
 
     return { ...base, print, willPrintOwnComments }
