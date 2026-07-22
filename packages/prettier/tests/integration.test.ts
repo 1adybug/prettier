@@ -185,6 +185,27 @@ import "./a.css"
         assert.equal(await formatCode(source, { sortSideEffect: true }), `import "./a.css"\nimport "./z.css"\n`)
     })
 
+    test("separates regular and side-effect import groups without reordering side effects", async () => {
+        const source = `
+import type { FC } from "react"
+import { Registry } from "@/components/Registry"
+import "@fontsource-variable/noto-sans-sc/wght.css"
+import "./globals.css"
+`
+
+        assert.equal(
+            await formatCode(source),
+            `import type { FC } from "react"
+
+import { Registry } from "@/components/Registry"
+
+import "@fontsource-variable/noto-sans-sc/wght.css"
+
+import "./globals.css"
+`,
+        )
+    })
+
     test("allows individual bundled transforms to be disabled or overridden", async () => {
         const result = await formatCode(
             `

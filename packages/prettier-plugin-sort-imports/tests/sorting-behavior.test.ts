@@ -181,7 +181,7 @@ console.log(a, z, b, localA)
         )
     })
 
-    test("does not let grouping reorder side-effect separators", async () => {
+    test("keeps side-effect positions while applying group separators", async () => {
         const config: PluginConfig = {
             getGroup: ({ path }) => (path.startsWith(".") ? "local" : "external"),
             groupSeparator: "",
@@ -199,9 +199,13 @@ console.log(a, z, local)
         assert.equal(
             await formatCode(source, config),
             `import z from "z"
+
 import "./setup-z"
+
 import a from "a"
+
 import "./setup-a"
+
 import { local } from "./local"
 
 console.log(a, z, local)
@@ -219,6 +223,35 @@ import "./setup-z"
 import { local } from "./local"
 
 console.log(a, z, local)
+`,
+        )
+    })
+
+    test("keeps adjacent side-effect imports in the same group together", async () => {
+        const result = await formatCode(
+            `
+import value from "pkg"
+import "theme-a.css"
+import "theme-b.css"
+import "./globals.css"
+console.log(value)
+`,
+            {
+                getGroup: ({ path }) => (path.startsWith(".") ? "local" : "external"),
+                groupSeparator: "",
+            },
+        )
+
+        assert.equal(
+            result,
+            `import value from "pkg"
+
+import "theme-a.css"
+import "theme-b.css"
+
+import "./globals.css"
+
+console.log(value)
 `,
         )
     })

@@ -3,11 +3,12 @@ import { builtinModules, createRequire } from "node:module"
 import type { Parser, ParserOptions, Plugin, Options as PrettierOptions } from "prettier"
 
 import { markTypeOnlyImportsFromStatements, removeUnusedImportsFromStatements } from "./analyzer"
-import { formatGroups, formatImportStatement, formatImportStatements } from "./formatter"
+import { formatGroups, formatImportStatements } from "./formatter"
 import { parseImports } from "./parser"
 import { groupImports, mergeImports, sortGroups, sortImports } from "./sorter"
 import type {
     GetGroupFunction,
+    Group,
     GroupSeparatorFunction,
     ImportStatement,
     PluginConfig,
@@ -15,6 +16,7 @@ import type {
     SortImportContentFunction,
     SortImportStatementFunction,
 } from "./types"
+
 export * from "./types"
 
 const require = createRequire(import.meta.url)
@@ -147,17 +149,35 @@ function formatGroupedImportsPreservingSideEffects(
     config: PluginConfig,
     trailingComma?: ParserOptions["trailingComma"],
 ): string {
-    const sections: string[] = []
+    const groups: Group[] = []
 
     let currentSection: ImportStatement[] = []
+
+    const appendGroups = (nextGroups: Group[]) => {
+        for (const group of nextGroups) {
+            const previousGroup = groups[groups.length - 1]
+
+            if (
+                previousGroup &&
+                previousGroup.name === group.name &&
+                previousGroup.isSideEffect === group.isSideEffect &&
+                previousGroup.isExport === group.isExport
+            ) {
+                previousGroup.importStatements.push(...group.importStatements)
+                continue
+            }
+
+            groups.push(group)
+        }
+    }
 
     const flushCurrentSection = () => {
         if (currentSection.length === 0) return
 
-        const groups = groupImports(currentSection, config)
-        const sortedGroups = sortGroups(groups, config)
+        const sectionGroups = groupImports(currentSection, config)
+        const sortedGroups = sortGroups(sectionGroups, config)
 
-        sections.push(formatGroups(sortedGroups, config, trailingComma))
+        appendGroups(sortedGroups)
         currentSection = []
     }
 
@@ -168,12 +188,12 @@ function formatGroupedImportsPreservingSideEffects(
         }
 
         flushCurrentSection()
-        sections.push(formatImportStatement(statement, trailingComma, config.mergeTypeImports ?? true))
+        appendGroups(groupImports([statement], config))
     }
 
     flushCurrentSection()
 
-    return sections.join("\n")
+    return formatGroups(groups, config, trailingComma)
 }
 
 /** 预处理导入语句 */
