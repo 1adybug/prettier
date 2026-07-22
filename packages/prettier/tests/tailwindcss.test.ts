@@ -10,7 +10,7 @@ export interface PrettierModule {
 }
 
 const packageDir = resolve(dirname(fileURLToPath(import.meta.url)), "..")
-const playgroundDir = resolve(packageDir, "../playground")
+const tailwindProjectDir = resolve(packageDir, "tests/fixtures/tailwind-project")
 const pluginUrl = pathToFileURL(resolve(packageDir, "src/index.ts")).href
 
 async function loadPlugin() {
@@ -22,7 +22,7 @@ async function formatCode(code: string) {
     const plugin = await loadPlugin()
 
     return format(code, {
-        filepath: resolve(playgroundDir, "src/App.tsx"),
+        filepath: resolve(tailwindProjectDir, "src/App.tsx"),
         parser: "typescript",
         plugins: [plugin],
         semi: false,
