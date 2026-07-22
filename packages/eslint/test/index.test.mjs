@@ -5,7 +5,7 @@ import test from "node:test"
 import defaultConfig, { defineConfig } from "@1adybug/eslint"
 import { ESLint } from "eslint"
 
-const require = createRequire(import.meta.url)
+const requireFromPackage = createRequire(import.meta.url)
 
 const allFiles = ["**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}"]
 
@@ -49,7 +49,7 @@ function assertRuleMessage(result, ruleId, severity) {
 }
 
 test("publishes executable ESM and CommonJS entry points", async () => {
-    const commonJsModule = require("@1adybug/eslint")
+    const commonJsModule = requireFromPackage("@1adybug/eslint")
 
     const commonJsConfig = commonJsModule.defineConfig({
         next: false,
@@ -437,8 +437,8 @@ test("automatically excludes Next server directories from browser configurations
     assert.equal(nodeConfig?.languageOptions.globals.process, false)
 })
 
-test("rejects a glob assigned to multiple runtime groups", () => {
-    assert.throws(
+test("rejects a glob assigned to multiple runtime groups", () =>
+    void assert.throws(
         () =>
             defineConfig({
                 directories: {
@@ -447,8 +447,7 @@ test("rejects a glob assigned to multiple runtime groups", () => {
                 },
             }),
         /Directory globs must not be duplicated across web\/node\/mixed: "shared\/\*\*\/\*\.ts" => browser, node/,
-    )
-})
+    ))
 
 test("supports every Node preset", async t => {
     const cases = [

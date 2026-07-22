@@ -29,8 +29,8 @@ type C = string`
         parser: "typescript",
         plugins: [plugin],
     })
-    console.log("=== JS ===\n" + jsOut)
-    console.log("=== TS ===\n" + tsOut)
+    console.log(`=== JS ===\n${jsOut}`)
+    console.log(`=== TS ===\n${tsOut}`)
 }
 
 run()

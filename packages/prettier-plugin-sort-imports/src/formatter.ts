@@ -118,7 +118,7 @@ export function formatImportStatement(statement: ImportStatement, trailingComma?
         const keyword = isExport ? "export" : "import"
         // 只有在所有命名导入都是类型且没有默认导入/命名空间导入时才使用 type 关键字
         const typeKeyword = shouldUseTypeOnlyDeclaration ? "type " : ""
-        const defaultPart = parts.length > 0 ? parts.join(", ") + ", " : ""
+        const defaultPart = parts.length > 0 ? `${parts.join(", ")}, ` : ""
         const importStart = `${keyword} ${typeKeyword}${defaultPart}{`
         let importEnd = `} from "${path}"`
 

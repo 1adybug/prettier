@@ -120,16 +120,16 @@ type FeatureInput<T extends BaseFeatureOptions = BaseFeatureOptions> = boolean |
 
 type FeatureExtend = ExtendsElement
 
-type ConfigurablePlugin = Plugin & {
-    configs?: Record<string, unknown>
+interface ConfigurablePlugin extends Plugin {
+    configs?: Plugin["configs"]
 }
 
-type PluginModule = ConfigurablePlugin & {
+interface PluginModule extends ConfigurablePlugin {
     default?: ConfigurablePlugin
 }
 
-type NodePluginRuntime = ConfigurablePlugin & {
-    configs: Record<string, unknown>
+interface NodePluginRuntime extends ConfigurablePlugin {
+    configs: NonNullable<Plugin["configs"]>
 }
 
 export type NodePreset = keyof typeof nodePresetToConfigKey

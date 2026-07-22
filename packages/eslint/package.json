@@ -17,14 +17,13 @@
     ],
     "scripts": {
         "build": "rslib build",
+        "check": "tsc --noEmit",
         "dev": "rslib build --watch",
         "test": "rslib build && tsc -p test/types/tsconfig.json && nub --test test/index.test.mjs",
         "test:types": "rslib build && tsc -p test/types/tsconfig.json",
         "test:coverage": "rslib build && tsc -p test/types/tsconfig.json && nub --test --experimental-test-coverage --test-coverage-include=dist/index.js --test-coverage-lines=95 --test-coverage-branches=90 --test-coverage-functions=95 test/index.test.mjs",
-        "prepublishOnly": "rslib build",
-        "format": "prettier --write .",
-        "fg": "prettier --write . && git add . && git commit -m \"✨feature: format\"",
-        "prepare": "husky"
+        "prepublishOnly": "nub run build",
+        "format": "prettier --write ."
     },
     "publishConfig": {
         "access": "public",
@@ -32,11 +31,11 @@
     },
     "repository": {
         "type": "git",
-        "url": "git+https://github.com/1adybug/eslint.git"
+        "url": "git+https://github.com/1adybug/prettier.git"
     },
-    "homepage": "https://github.com/1adybug/eslint",
+    "homepage": "https://github.com/1adybug/prettier/tree/main/packages/eslint",
     "bugs": {
-        "url": "https://github.com/1adybug/eslint/issues"
+        "url": "https://github.com/1adybug/prettier/issues"
     },
     "dependencies": {
         "@eslint/js": "^9.39.4",
@@ -50,22 +49,17 @@
         "typescript-eslint": "^8.63.0"
     },
     "devDependencies": {
-        "@1adybug/prettier": "^0.0.31",
+        "@1adybug/prettier": "workspace:*",
         "@eslint/config-helpers": "^0.6.0",
         "@eslint/core": "^1.1.1",
         "@rslib/core": "^0.23.2",
-        "@types/node": "^24.12.0",
-        "husky": "^9.1.7",
-        "lint-staged": "^17.0.8",
+        "@types/node": "catalog:",
         "next": "^16.2.10",
-        "prettier": "^3.9.4",
+        "prettier": "catalog:",
         "react": "^19.0.0",
         "typescript": "^6.0.3"
     },
     "peerDependencies": {
         "eslint": "^9.39.4"
-    },
-    "lint-staged": {
-        "**/*": "prettier --write --ignore-unknown"
     }
 }

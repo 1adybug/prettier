@@ -3,7 +3,13 @@ import { defineConfig } from "@1adybug/eslint"
 const defaultProjectFiles = ["packages/*/*.config.ts", "packages/*/tests/*.test.ts"]
 
 const config = defineConfig({
-    ignores: ["**/dist/**", "packages/prettier-plugin-remove-braces/example.js"],
+    target: "both",
+    next: false,
+    react: false,
+    ignores: ["**/dist/**", "packages/eslint/test/fixtures/**", "packages/prettier-plugin-remove-braces/example.js"],
+    rules: {
+        "@typescript-eslint/max-params": "off",
+    },
 })
 
 export default config.map(item => {

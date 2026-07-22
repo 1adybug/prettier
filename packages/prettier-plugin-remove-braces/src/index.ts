@@ -282,7 +282,7 @@ function transformAST(ast: any, options: TransformASTOptions = {}, context: Tran
             !isLexicalDeclaration(block.body[0])
         ) {
             const returnStatement = block.body[0]
-            let argument = returnStatement.argument
+            const argument = returnStatement.argument
 
             // For object literals, we'll handle this differently by using sequence expression
             if (argument?.type === "ObjectExpression") {
