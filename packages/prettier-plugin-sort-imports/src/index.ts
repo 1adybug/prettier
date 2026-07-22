@@ -3,7 +3,7 @@ import { builtinModules, createRequire } from "node:module"
 import type { Parser, ParserOptions, Plugin, Options as PrettierOptions } from "prettier"
 
 import { markTypeOnlyImportsFromStatements, removeUnusedImportsFromStatements } from "./analyzer"
-import { formatGroups, formatImportStatements } from "./formatter"
+import { formatGroups, formatImportStatement, formatImportStatements } from "./formatter"
 import { parseImports } from "./parser"
 import { groupImports, mergeImports, sortGroups, sortImports } from "./sorter"
 import type {
@@ -15,7 +15,6 @@ import type {
     SortImportContentFunction,
     SortImportStatementFunction,
 } from "./types"
-
 export * from "./types"
 
 const require = createRequire(import.meta.url)
@@ -143,6 +142,40 @@ function removeRangesFromText(text: string, ranges: ImportRange[]): string {
     return result
 }
 
+function formatGroupedImportsPreservingSideEffects(
+    statements: ImportStatement[],
+    config: PluginConfig,
+    trailingComma?: ParserOptions["trailingComma"],
+): string {
+    const sections: string[] = []
+
+    let currentSection: ImportStatement[] = []
+
+    const flushCurrentSection = () => {
+        if (currentSection.length === 0) return
+
+        const groups = groupImports(currentSection, config)
+        const sortedGroups = sortGroups(groups, config)
+
+        sections.push(formatGroups(sortedGroups, config, trailingComma))
+        currentSection = []
+    }
+
+    for (const statement of statements) {
+        if (!statement.isSideEffect) {
+            currentSection.push(statement)
+            continue
+        }
+
+        flushCurrentSection()
+        sections.push(formatImportStatement(statement, trailingComma, config.mergeTypeImports ?? true))
+    }
+
+    flushCurrentSection()
+
+    return sections.join("\n")
+}
+
 /** 预处理导入语句 */
 function preprocessImports(text: string, options: ParserOptions & Partial<PluginConfig>, config: PluginConfig = {}): string {
     try {
@@ -205,9 +238,11 @@ function preprocessImports(text: string, options: ParserOptions & Partial<Plugin
 
         // 如果配置了分组函数，使用分组格式化
         if (finalConfig.getGroup) {
-            const groups = groupImports(mergedImports, finalConfig)
-            const sortedGroups = sortGroups(groups, finalConfig)
-            formattedImports = formatGroups(sortedGroups, finalConfig, options.trailingComma)
+            if (finalConfig.sortSideEffect) {
+                const groups = groupImports(mergedImports, finalConfig)
+                const sortedGroups = sortGroups(groups, finalConfig)
+                formattedImports = formatGroups(sortedGroups, finalConfig, options.trailingComma)
+            } else formattedImports = formatGroupedImportsPreservingSideEffects(mergedImports, finalConfig, options.trailingComma)
         } else
             // 否则直接格式化
             formattedImports = formatImportStatements(mergedImports, options.trailingComma, finalConfig.mergeTypeImports)
@@ -293,8 +328,10 @@ function createCombinedPreprocess(parserName: string, config: PluginConfig) {
         try {
             const parsers = await resolveParsers(parserName, otherPlugins)
 
+            const otherPluginOptions = { ...options, ...config.prettierOptions }
+
             for (const parser of parsers) {
-                if (typeof parser.preprocess === "function") processedText = await parser.preprocess(processedText, options)
+                if (typeof parser.preprocess === "function") processedText = await parser.preprocess(processedText, otherPluginOptions)
             }
         } catch (error) {
             console.warn("Failed to apply other plugins preprocess:", error instanceof Error ? error.message : String(error))
@@ -396,11 +433,15 @@ function createPluginInstance(config: PluginConfig = {}): Plugin {
         merged.parse = async function chainedParse(text: string, options: any) {
             const parsers = await resolveParsers(parserName, otherPlugins)
 
+            const otherPluginOptions = { ...options, ...config.prettierOptions }
+
             // 像 prettier-plugin-tailwindcss 0.8 这样的插件会在 parse 阶段修改 AST。
             // 这类 parser 没有 __transformAST，必须显式调用它自己的 parse 才能生效。
-            const parseParser = parsers.find(parser => typeof (parser as any).__transformAST !== "function" && parser.parse !== originalParse)
+            const parseParser = parsers.find(
+                parser => typeof (parser as any).__transformAST !== "function" && typeof parser.parse === "function" && parser.parse !== originalParse,
+            )
 
-            let ast = parseParser ? await parseParser.parse(text, options) : await originalParse(text, options)
+            let ast = parseParser ? await parseParser.parse(text, otherPluginOptions) : await originalParse(text, options)
 
             const transformASTFunctions = [
                 ...staticTransformASTFunctions,
@@ -412,7 +453,7 @@ function createPluginInstance(config: PluginConfig = {}): Plugin {
             // 然后依次调用所有插件的 __transformAST
             for (const transformAST of transformASTFunctions) {
                 try {
-                    ast = await transformAST(ast, options)
+                    ast = await transformAST(ast, otherPluginOptions)
                 } catch (error) {
                     console.warn("Plugin transformAST failed:", error instanceof Error ? error.message : String(error))
                 }

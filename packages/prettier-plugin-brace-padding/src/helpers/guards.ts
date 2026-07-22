@@ -30,9 +30,18 @@ export interface ExportNamedDeclarationNode extends NodeBase {
     declaration?: NodeBase
 }
 
+function unwrapExportDeclaration(node: NodeBase): NodeBase {
+    if (node.type !== "ExportNamedDeclaration" && node.type !== "ExportDefaultDeclaration") return node
+
+    const declaration = (node as unknown as ExportNamedDeclarationNode).declaration
+    return declaration ?? node
+}
+
 // 判断是否块状语句（会形成作用域或代码块）
 export function isBlockLikeStatement(node: NodeBase): boolean {
     if (!node || typeof node.type !== "string") return false
+
+    node = unwrapExportDeclaration(node)
 
     // 覆盖常见会形成块或作用域的语句/声明
     switch (node.type) {
@@ -111,16 +120,10 @@ export function isClassProperty(node: NodeBase): boolean {
 export function isTsTypeDeclaration(node: NodeBase): boolean {
     if (!node || typeof node.type !== "string") return false
 
+    node = unwrapExportDeclaration(node)
+
     // 直接的 TS 类型声明
     if (node.type === "TSInterfaceDeclaration" || node.type === "TSTypeAliasDeclaration" || node.type === "TSEnumDeclaration") return true
-
-    // export 包裹的 TS 类型声明（export interface/type/enum）
-    if (node.type === "ExportNamedDeclaration") {
-        const anyNode = node as unknown as ExportNamedDeclarationNode
-        const decl = anyNode.declaration
-        if (!decl) return false
-        return decl.type === "TSInterfaceDeclaration" || decl.type === "TSTypeAliasDeclaration" || decl.type === "TSEnumDeclaration"
-    }
 
     return false
 }
@@ -160,6 +163,10 @@ function isOtherBlockExpression(expr: NodeBase | undefined): boolean {
 export function hasTopLevelObjectOrArrayLiteral(node: NodeBase): boolean {
     if (!node) return false
 
+    node = unwrapExportDeclaration(node)
+
+    if (isObjectOrArrayLiteral(node)) return true
+
     if (node.type === "VariableDeclaration") {
         const v = node as unknown as VariableDeclarationNode
 
@@ -184,6 +191,10 @@ export function hasTopLevelObjectOrArrayLiteral(node: NodeBase): boolean {
 // 判断语句是否包含其他块类型表达式（只在多行时留空）
 export function hasOtherBlockExpression(node: NodeBase): boolean {
     if (!node) return false
+
+    node = unwrapExportDeclaration(node)
+
+    if (isOtherBlockExpression(node)) return true
 
     if (node.type === "VariableDeclaration") {
         const v = node as unknown as VariableDeclarationNode

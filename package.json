@@ -7,21 +7,20 @@
     "license": "ISC",
     "type": "module",
     "private": true,
+    "packageManager": "pnpm@11.10.0",
     "scripts": {
-        "dev": "bun scripts/dev.mjs",
+        "dev": "nub run --recursive --filter \"@1adybug/*\" --parallel dev",
         "r": "pnpm i && pnpm publish -r",
-        "cs": "pnpm changeset && pnpm changeset version",
-        "format": "prettier --write .",
-        "sync": "bun scripts/syncPackage.mjs",
-        "postr": "npm run sync",
-        "build": "bun scripts/build.mjs",
-        "fg": "npm run format && git add . && git commit -m \"✨feature: format\"",
-        "lint": "eslint .",
+        "cs": "nub exec changeset && nub exec changeset version",
+        "format": "nub exec prettier --write .",
+        "sync": "nub scripts/syncPackage.mjs",
+        "postr": "nub run sync",
+        "build": "nub run --recursive --filter \"@1adybug/*\" build",
+        "fg": "nub run format && git add . && git commit -m \"✨feature: format\"",
+        "lint": "nub exec eslint .",
         "prepare": "husky",
-        "check": "bun scripts/tsc.mjs"
-    },
-    "dependencies": {
-        "soda-nodejs": "^0.8.15"
+        "check": "nub run --recursive --filter \"@1adybug/*\" check",
+        "test": "nub run --recursive --filter \"@1adybug/*\" --if-present test"
     },
     "devDependencies": {
         "@1adybug/eslint": "^0.0.11",

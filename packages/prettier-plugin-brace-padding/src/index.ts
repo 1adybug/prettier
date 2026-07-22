@@ -10,9 +10,24 @@ interface NodeWithType {
     type?: string
 }
 
+interface DirectiveStatement {
+    directive?: string
+}
+
+interface NodeWithDirectives extends NodeWithType {
+    body?: DirectiveStatement[]
+    directives?: unknown[]
+}
+
 type WillPrintOwnComments = (path: AstPath, options?: ParserOptions) => boolean
 
 type Print = Parameters<Printer["print"]>[2]
+
+function hasDirectivePrologue(node: NodeWithDirectives): boolean {
+    if (Array.isArray(node.directives) && node.directives.length > 0) return true
+
+    return Array.isArray(node.body) && node.body.some(statement => typeof statement.directive === "string")
+}
 
 function createPatchedEstreePrinter(base: Printer): Printer {
     function print(path: AstPath, options: ParserOptions, print: Print, args?: unknown): Doc {
@@ -74,7 +89,11 @@ function createPatchedEstreePrinter(base: Printer): Printer {
             const printed = printStatementSequence(path as unknown as any, p => print(p as AstPath) as unknown as Doc)
 
             const hasBody = Array.isArray(node.body) && node.body.length > 0
-            if (!hasBody) return ["{", "}"]
+
+            // Empty module blocks can still own dangling comments. Let Prettier's
+            // base printer handle the whole corner case so every comment is emitted.
+            if (!hasBody) return base.print(path, options, print, args)
+
             // 注意：将 hardline 放入 indent 内部，确保首行也会被缩进
             return ["{", indent([hardline, printed]), hardline, "}"]
         }
@@ -84,6 +103,10 @@ function createPatchedEstreePrinter(base: Printer): Printer {
             const hasBody = Array.isArray(node.body) && node.body.length > 0
             const anyNode = node as any
             const hasComments = anyNode.comments && anyNode.comments.length > 0
+
+            // Babel stores function-level directive prologues outside `body`.
+            // Delegate the whole block so directives can never be omitted.
+            if (hasDirectivePrologue(node as NodeWithDirectives)) return base.print(path, options, print, args)
 
             // 如果块为空但有注释（如 catch { /* empty */ }），使用基础打印机处理
             if (!hasBody && hasComments) return base.print(path, options, print)
@@ -96,6 +119,21 @@ function createPatchedEstreePrinter(base: Printer): Printer {
 
             // 将 hardline 放入 indent 内部，确保首行也会被缩进
             return ["{", indent([hardline, printed]), hardline, "}"]
+        }
+
+        // Class static initialization blocks also expose a statement `body`,
+        // but their printer owns the `static` keyword in addition to braces.
+        if (node.type === "StaticBlock") {
+            const hasBody = Array.isArray(node.body) && node.body.length > 0
+            const anyNode = node as any
+            const hasComments = anyNode.comments && anyNode.comments.length > 0
+
+            if (!hasBody && hasComments) return base.print(path, options, print, args)
+            if (!hasBody) return ["static ", "{", "}"]
+
+            const printed = printStatementSequence(path as unknown as any, p => print(p as AstPath) as unknown as Doc)
+
+            return ["static ", "{", indent([hardline, printed]), hardline, "}"]
         }
 
         // 处理类的主体（ClassBody）
@@ -123,9 +161,16 @@ function createPatchedEstreePrinter(base: Printer): Printer {
     function willPrintOwnComments(path: AstPath, options?: ParserOptions): boolean {
         const node = path.node as NodeWithType | null
 
-        if (node && (node.type === "Program" || node.type === "TSModuleBlock" || node.type === "BlockStatement" || node.type === "ClassBody")) {
+        if (
+            node &&
+            (node.type === "Program" ||
+                node.type === "TSModuleBlock" ||
+                node.type === "BlockStatement" ||
+                node.type === "StaticBlock" ||
+                node.type === "ClassBody")
+        ) {
             return (
-                // 将 Program、TSModuleBlock、BlockStatement 和 ClassBody 的注释交回给通用注释打印逻辑，避免遗漏
+                // 将自定义语句容器的注释交回给通用注释打印逻辑，避免遗漏
                 false
             )
         }

@@ -447,6 +447,10 @@ import "f-side-effect"
 import "f-side-effect"
 ```
 
+### Lossless safety fallbacks
+
+If a file contains import attributes/assertions, type-only star exports, string-named specifiers, namespace re-exports, or inline import comments that the normalized model cannot reproduce, import rewriting is skipped for that file. Other composed Prettier plugins still run. `markTypeOnlyImports` is also skipped in decorated files because changing an import can affect emitted decorator metadata. Runtime references inside TypeScript namespaces, enum initializers, parameter properties, export assignments, and import-equals aliases are treated as values. `removeUnusedImports` is skipped when JSDoc type tags are present because those references cannot be resolved losslessly by the current AST analysis.
+
 ### groupSeparator
 
 Separator between groups, defaults to `undefined` (no separator).

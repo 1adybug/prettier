@@ -9,6 +9,7 @@
 ## 功能特性
 
 - ✅ **箭头函数转换**：`() => { return x; }` → `() => x`
+- ✅ **Void 箭头函数转换**：可选地将 `() => { doSomething() }` 转换为 `() => void doSomething()`
 - ✅ **对象字面量返回**：正确包装返回的对象：`() => { return { a: 1 }; }` → `() => ({ a: 1 })`
 - ✅ **If 语句转换**：移除单条语句的大括号：`if (cond) { stmt(); }` → `if (cond) stmt();`
 - ✅ **循环语句转换**：支持 `for`、`while`、`do-while`、`for-in`、`for-of` 循环
@@ -41,6 +42,7 @@ npm install prettier-plugin-remove-braces --save-dev
 ```js
 module.exports = {
     plugins: ["prettier-plugin-remove-braces"],
+    arrowFunctionVoid: true,
     controlStatementBraces: "remove", // 选项: "default" | "remove" | "add"
     // ... 其他 prettier 选项
 }
@@ -51,6 +53,7 @@ module.exports = {
 ```json
 {
     "plugins": ["prettier-plugin-remove-braces"],
+    "arrowFunctionVoid": true,
     "controlStatementBraces": "remove"
 }
 ```
@@ -128,6 +131,27 @@ if (a) {
 ```
 
 ## 选项
+
+### `arrowFunctionVoid`（布尔类型，默认：`false`）
+
+启用后，如果箭头函数块体中恰好只有一个表达式语句，插件会将其转换为简写的 `void` 表达式。这样既能移除大括号，又能保持原函数返回 `undefined` 的语义。
+
+```javascript
+// 格式化前
+const run = () => {
+    doSomething()
+}
+
+const assign = () => {
+    value = getValue()
+}
+
+// 格式化后
+const run = () => void doSomething()
+const assign = () => void (value = getValue())
+```
+
+如果块体包含注释、指令、多条语句或非表达式语句，插件会保留原块体。显式 `return` 语句仍沿用插件已有的隐式返回转换。
 
 ### `controlStatementBraces` (选择类型, 默认: "default")
 
@@ -274,13 +298,13 @@ cd prettier-plugin-remove-braces
 npm install
 
 # 构建插件
-npm run build
+nub run build
 
 # 运行测试
 npm test
 
 # 开发时监听变化
-npm run dev
+nub run dev
 ```
 
 ## 测试

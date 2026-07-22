@@ -40,10 +40,11 @@
     "sideEffects": false,
     "scripts": {
         "build": "rslib build",
+        "check": "tsc --noEmit",
         "dev": "rslib build --watch",
-        "prepublishOnly": "npm run build",
+        "prepublishOnly": "nub run build",
         "test": "nub --test tests/*.test.ts",
-        "test:quick": "node ./scripts/quick-test.mjs"
+        "test:quick": "nub ./scripts/quick-test.mjs"
     },
     "publishConfig": {
         "access": "public",

@@ -14,15 +14,8 @@ const playgroundDir = resolve(packageDir, "../playground")
 const pluginUrl = pathToFileURL(resolve(packageDir, "src/index.ts")).href
 
 async function loadPlugin() {
-    const cwd = process.cwd()
-    process.chdir(playgroundDir)
-
-    try {
-        const module = (await import(`${pluginUrl}?tailwindcss-test=${Date.now()}`)) as PrettierModule
-        return module.default
-    } finally {
-        process.chdir(cwd)
-    }
+    const module = (await import(`${pluginUrl}?tailwindcss-test=${Date.now()}`)) as PrettierModule
+    return module.default
 }
 
 async function formatCode(code: string) {
@@ -37,7 +30,7 @@ async function formatCode(code: string) {
 }
 
 describe("tailwindcss", () => {
-    test("sorts className through the bundled tailwindcss plugin", async () => {
+    test("sorts className when the aggregate plugin is loaded outside the Tailwind project", async () => {
         const result = await formatCode(`<div className="w-full h-full flex bg-red-500 p-4"></div>`)
 
         assert.equal(result, `;<div className="flex h-full w-full bg-red-500 p-4"></div>\n`)

@@ -5,6 +5,62 @@ import type { ImportContent, ImportStatement } from "./types"
 
 /** 解析导入语句 */
 
+function canNormalizeImportNode(node: ImportDeclaration | ExportNamedDeclaration | ExportAllDeclaration, comments: Comment[], code: string): boolean {
+    const importNode = node as any
+
+    if (
+        importNode.attributes?.length > 0 ||
+        importNode.assertions?.length > 0 ||
+        importNode.phase != null ||
+        importNode.module === true ||
+        (node.type === "ExportAllDeclaration" && importNode.exportKind === "type")
+    )
+        return false
+
+    const supportedInnerComments = new Set<Comment>()
+
+    if (node.type === "ImportDeclaration") {
+        // `import {} from` cannot be distinguished from a side-effect import in
+        // the normalized model after specifiers have been discarded.
+        if (node.specifiers.length === 0 && /^\s*import\s*\{/.test(code.slice(node.start ?? 0, node.end ?? 0))) return false
+
+        for (const specifier of node.specifiers) {
+            if (specifier.type === "ImportSpecifier") {
+                if (specifier.imported.type !== "Identifier") return false
+                if (node.importKind === "type" && specifier.imported.name === "default") return false
+
+                for (const comment of specifier.leadingComments ?? []) supportedInnerComments.add(comment)
+                for (const comment of specifier.trailingComments ?? []) supportedInnerComments.add(comment)
+            } else {
+                // The formatter cannot currently place comments on default or
+                // namespace specifiers, nor preserve declaration-level `type`.
+                if (node.importKind === "type") return false
+            }
+        }
+    } else if (node.type === "ExportNamedDeclaration") {
+        if (node.specifiers.length === 0) return false
+
+        for (const specifier of node.specifiers) {
+            if (specifier.type !== "ExportSpecifier" || specifier.local.type !== "Identifier" || specifier.exported.type !== "Identifier") return false
+            if (node.exportKind === "type" && specifier.local.name === "default") return false
+
+            for (const comment of specifier.leadingComments ?? []) supportedInnerComments.add(comment)
+            for (const comment of specifier.trailingComments ?? []) supportedInnerComments.add(comment)
+        }
+    }
+
+    const nodeStart = node.start ?? 0
+    const nodeEnd = node.end ?? 0
+
+    // Comments inside the declaration that are not attached to a supported
+    // named specifier have no lossless position in the normalized model.
+    return !comments.some(comment => {
+        const commentStart = comment.start ?? -1
+        const commentEnd = comment.end ?? -1
+        return commentStart >= nodeStart && commentEnd <= nodeEnd && !supportedInnerComments.has(comment)
+    })
+}
+
 export function parseImports(code: string, filepath?: string): ImportStatement[] {
     // 首先快速检查是否有导入/导出语句
     // 如果没有，直接返回空数组，避免 attachComment 导致的问题
@@ -14,10 +70,12 @@ export function parseImports(code: string, filepath?: string): ImportStatement[]
 
     const ast = parse(code, {
         sourceType: "module",
-        plugins: ["typescript", "jsx"],
+        plugins: ["typescript", "jsx", "decorators-legacy"],
         errorRecovery: true, // 允许解析有语法错误的代码
         attachComment: true, // 将注释附加到 AST 节点
     })
+
+    if (ast.errors?.length) return []
 
     const importStatements: ImportStatement[] = []
 
@@ -31,6 +89,11 @@ export function parseImports(code: string, filepath?: string): ImportStatement[]
 
     for (const node of body) {
         if (node.type === "ImportDeclaration" || (node.type === "ExportNamedDeclaration" && node.source) || node.type === "ExportAllDeclaration") {
+            // The formatter rebuilds import/export declarations from a normalized
+            // model. Until that model can preserve these proposals losslessly,
+            // skip import formatting for the whole file instead of deleting syntax.
+            if (!canNormalizeImportNode(node, ast.comments ?? [], code)) return []
+
             const statement = parseImportNode(node, ast.comments ?? [], usedComments, code, isFirstImport, filepath)
             importStatements.push(statement)
             isFirstImport = false

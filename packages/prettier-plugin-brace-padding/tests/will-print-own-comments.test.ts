@@ -14,8 +14,8 @@ async function formatCode(code: string) {
     })
 }
 
-describe("willPrintOwnComments", () => {
-    test("formats expression statements with leading comments when semi is false", async () => {
+describe("willPrintOwnComments", () =>
+    void test("formats expression statements with leading comments when semi is false", async () => {
         const result = await formatCode(`
 function run() {
     // keep this comment attached
@@ -31,5 +31,4 @@ function run() {
 }
 `,
         )
-    })
-})
+    }))

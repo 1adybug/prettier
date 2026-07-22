@@ -8,7 +8,7 @@ A Prettier plugin that intelligently inserts blank lines between specific statem
 
 ## Key Features
 
-- **All Code Blocks Grouping**: Inserts an additional blank line before and after specific statements in all code blocks, including file top-level, function bodies, if/for/while statement blocks (i.e., two line breaks separating adjacent statements), enhancing structural separation.
+- **All Code Blocks Grouping**: Inserts an additional blank line before and after specific statements in file top-level, function bodies, if/for/while statement blocks, TypeScript namespaces, and class static initialization blocks (i.e., two line breaks separating adjacent statements), enhancing structural separation. Switch-case sequences remain delegated to Prettier because they are not block statements.
 - **Smart Multi-line Expression Block Recognition**: Automatically identifies and adds blank lines around multi-line expression blocks such as template literals, function expressions, class expressions, JSX elements, etc., improving code readability.
 - **TypeScript Namespace Support**: Applies the same rules to member statements inside `namespace`/`module` (`TSModuleBlock`), ensuring correct line breaks between braces and first/last lines.
 - **Smart Single-line Detection**: Single-line objects, functions, template literals, etc., do not trigger additional blank lines (except object/array literals), avoiding excessive separation.
@@ -176,6 +176,7 @@ Add the plugin to your Prettier configuration (**recommended to place at the end
 - Inserts additional blank lines "between statements" in all code blocks (including file top-level, function bodies, if/for/while statement blocks, TS namespace blocks).
 - Supported expression block types: template literals, tagged templates (e.g., styled-components), arrow functions, function expressions, class expressions, multi-line function calls, new expressions, JSX elements, and fragments.
 - Does not rewrite formatting inside expressions or object properties, and does not affect comment positions or line-breaking decisions (handled by Prettier).
+- Statement containers with directive prologues (for example, function-level `"use strict"`) are delegated to Prettier, so padding is skipped only inside that container rather than risking directive loss.
 - Will not arbitrarily add extra blank lines at the beginning/end of files/blocks.
 - Single-line expressions (except object/array literals) do not trigger blank lines, avoiding excessive separation.
 
@@ -188,7 +189,7 @@ npx prettier --plugin prettier-plugin-block-padding --parser typescript --write 
 Or use the project script (if exists):
 
 ```bash
-npm run test:quick
+nub run test:quick
 ```
 
 ---

@@ -26,6 +26,13 @@ export interface IdentifierUsage {
     value: boolean
 }
 
+interface IdentifierUsageAnalysis {
+    usages: Map<string, IdentifierUsage>
+    hasDecorators: boolean
+}
+
+const JSDOC_TYPE_TAG = /\/\*\*[\s\S]*?@(?:type|param|returns?|typedef|template|extends|implements|satisfies|import)\b[\s\S]*?\*\//
+
 function addUsage(usages: Map<string, IdentifierUsage>, name: string, kind: keyof IdentifierUsage): void {
     const usage = usages.get(name) ?? { type: false, value: false }
     usage[kind] = true
@@ -64,13 +71,7 @@ function isTypeOnlyIdentifierPosition(path: NodePath<Identifier>): boolean {
         const parentPath = current.parentPath
         const parent = parentPath.node
 
-        if (
-            parent.type === "TSTypeReference" ||
-            parent.type === "TSTypeQuery" ||
-            parent.type === "TSExpressionWithTypeArguments" ||
-            parent.type === "TSQualifiedName"
-        )
-            return true
+        if (parent.type === "TSTypeReference" || parent.type === "TSTypeQuery" || parent.type === "TSExpressionWithTypeArguments") return true
 
         if (
             (parent.type === "TSAsExpression" ||
@@ -81,6 +82,25 @@ function isTypeOnlyIdentifierPosition(path: NodePath<Identifier>): boolean {
             current.key === "expression"
         )
             return false
+
+        // These TypeScript-prefixed nodes contain runtime expressions. Keep
+        // walking out of type syntax, but stop before a runtime container can
+        // make a referenced value look type-only or unused.
+        if (
+            parent.type === "TSModuleBlock" ||
+            (parent.type === "TSEnumMember" && current.key === "initializer") ||
+            (parent.type === "TSParameterProperty" && current.key === "parameter") ||
+            (parent.type === "TSExportAssignment" && current.key === "expression") ||
+            (parent.type === "TSImportEqualsDeclaration" && current.key === "moduleReference")
+        )
+            return false
+
+        // A qualified name is type-only only when its enclosing construct is.
+        // Continue to `TSTypeReference`/`TSTypeQuery` or a runtime import alias.
+        if (parent.type === "TSQualifiedName") {
+            current = parentPath
+            continue
+        }
 
         if (parent.type.startsWith("TS")) return true
 
@@ -102,19 +122,23 @@ function addRootValueUsage(usages: Map<string, IdentifierUsage>, node: any): voi
     if (name) addUsage(usages, name, "value")
 }
 
-/** 分析代码中标识符的类型位置和值位置使用情况 */
-export function analyzeIdentifierUsages(code: string): Map<string, IdentifierUsage> | null {
+function analyzeIdentifierUsageDetails(code: string): IdentifierUsageAnalysis | null {
     const usages = new Map<string, IdentifierUsage>()
+    let hasDecorators = false
 
     try {
         const ast = parse(code, {
             sourceType: "module",
-            plugins: ["typescript", "jsx"],
+            plugins: ["typescript", "jsx", "decorators-legacy"],
             errorRecovery: true,
         })
 
         // 遍历 AST，收集所有使用的标识符
         traverse(ast, {
+            Decorator() {
+                hasDecorators = true
+            },
+
             // 处理普通标识符
             Identifier(path: NodePath<Identifier>) {
                 const node = path.node
@@ -189,7 +213,12 @@ export function analyzeIdentifierUsages(code: string): Map<string, IdentifierUsa
         return null
     }
 
-    return usages
+    return { usages, hasDecorators }
+}
+
+/** 分析代码中标识符的类型位置和值位置使用情况 */
+export function analyzeIdentifierUsages(code: string): Map<string, IdentifierUsage> | null {
+    return analyzeIdentifierUsageDetails(code)?.usages ?? null
 }
 
 /** 分析代码中使用的标识符 */
@@ -220,11 +249,13 @@ export function filterUnusedImports(importStatement: ImportStatement, usedIdenti
         const usedName = content.alias ?? content.name
 
         // 对于默认导入和命名空间导入，使用别名
+        const hasComments = !!(content.leadingComments?.length || content.trailingComments?.length)
+
         if (content.name === "default" || content.name === "*") {
-            if (content.alias && usedIdentifiers.has(content.alias)) usedContents.push(content)
+            if ((content.alias && usedIdentifiers.has(content.alias)) || hasComments) usedContents.push(content)
         } else {
             // 对于命名导入，检查使用的名称
-            if (usedIdentifiers.has(usedName)) usedContents.push(content)
+            if (usedIdentifiers.has(usedName) || hasComments) usedContents.push(content)
         }
     }
 
@@ -238,6 +269,11 @@ export function filterUnusedImports(importStatement: ImportStatement, usedIdenti
 
 /** 从导入语句列表中移除未使用的导入 */
 export function removeUnusedImportsFromStatements(importStatements: ImportStatement[], code: string): ImportStatement[] {
+    // Babel's TypeScript traversal does not resolve identifiers embedded in
+    // JSDoc types. Removing imports in such a file could silently break JS type
+    // checking, so skip only this optional transform for the whole file.
+    if (JSDOC_TYPE_TAG.test(code)) return importStatements
+
     // 分析代码中使用的标识符
     const usedIdentifiers = analyzeUsedIdentifiers(code)
 
@@ -253,7 +289,13 @@ export function removeUnusedImportsFromStatements(importStatements: ImportStatem
         // 如果过滤后变成了副作用导入，但原本不是副作用导入，说明所有导入都未使用
         // 这种情况下可以选择保留或删除整个导入语句
         // 这里我们选择删除整个导入语句
-        if (!statement.isSideEffect && filteredStatement.isSideEffect && filteredStatement.importContents.length === 0) continue
+        if (!statement.isSideEffect && filteredStatement.isSideEffect && filteredStatement.importContents.length === 0) {
+            // There is no safe standalone position for statement comments once
+            // the import is removed, so retain this one import losslessly.
+            if (statement.leadingComments?.length || statement.trailingComments?.length) filteredStatements.push(statement)
+
+            continue
+        }
 
         filteredStatements.push(filteredStatement)
     }
@@ -263,9 +305,13 @@ export function removeUnusedImportsFromStatements(importStatements: ImportStatem
 
 /** 将仅用于类型位置的命名导入标记为 type */
 export function markTypeOnlyImportsFromStatements(importStatements: ImportStatement[], code: string): ImportStatement[] {
-    const usages = analyzeIdentifierUsages(code)
+    const analysis = analyzeIdentifierUsageDetails(code)
 
-    if (usages === null) return importStatements
+    // Type-only imports can change emitted decorator metadata. Without a
+    // TypeScript type checker, preserving the original import is the safe choice.
+    if (analysis === null || analysis.hasDecorators) return importStatements
+
+    const { usages } = analysis
 
     return importStatements.map(statement => {
         if (statement.isSideEffect || statement.isExport) return statement

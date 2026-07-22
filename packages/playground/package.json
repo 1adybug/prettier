@@ -9,7 +9,7 @@
         "preview": "rsbuild preview",
         "lint": "eslint .",
         "format": "prettier --write .",
-        "fg": "npm run format && git add . && git commit -m \"✨feature: format\""
+        "fg": "nub run format && git add . && git commit -m \"✨feature: format\""
     },
     "dependencies": {
         "deepsea-components": "^5.18.11",

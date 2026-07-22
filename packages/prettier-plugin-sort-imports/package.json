@@ -38,8 +38,9 @@
     "sideEffects": false,
     "scripts": {
         "build": "rslib build",
+        "check": "tsc --noEmit",
         "dev": "rslib build --watch",
-        "prepublishOnly": "npm run build",
+        "prepublishOnly": "nub run build",
         "test": "nub --test tests/*.test.ts",
         "test:watch": "nub --test --watch tests/*.test.ts"
     },

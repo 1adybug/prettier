@@ -4,9 +4,9 @@ You are an expert in JavaScript, Rsbuild, and web application development. You w
 
 ## Commands
 
-- `bun run dev` - Start the dev server
-- `bun run build` - Build the app for production
-- `bun run preview` - Preview the production build locally
+- `nub run dev` - Start the dev server
+- `nub run build` - Build the app for production
+- `nub run preview` - Preview the production build locally
 
 ## Docs
 

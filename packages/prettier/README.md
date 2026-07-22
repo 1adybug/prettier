@@ -5,7 +5,7 @@
 Install the dependencies:
 
 ```bash
-bun install
+pnpm install
 ```
 
 ## Get started
@@ -13,11 +13,11 @@ bun install
 Build the library:
 
 ```bash
-bun run build
+nub run build
 ```
 
 Build the library in watch mode:
 
 ```bash
-bun run dev
+nub run dev
 ```

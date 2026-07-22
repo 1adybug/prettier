@@ -14,6 +14,7 @@ const config = {
     multiLineBraces: "add",
     nodeProtocol: "add",
     markTypeOnlyImports: true,
+    arrowFunctionVoid: true,
 }
 
 export default config

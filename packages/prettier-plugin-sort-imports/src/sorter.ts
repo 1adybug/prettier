@@ -267,10 +267,12 @@ export function mergeImports(imports: ImportStatement[]): ImportStatement[] {
     // key 是 `${path}|||${isExport}` 的形式，确保相同模块和相同类型（import/export）的导入会被合并
     const mergedMap = new Map<string, ImportStatement>()
 
+    let uniqueIndex = 0
+
     for (const statement of imports) {
         // 副作用导入不合并
         if (statement.isSideEffect) {
-            const key = `${statement.path}|||${statement.isExport}|||sideEffect|||${statement.start}`
+            const key = `${statement.path}|||${statement.isExport}|||sideEffect|||${statement.start ?? uniqueIndex++}`
             mergedMap.set(key, statement)
             continue
         }
@@ -279,7 +281,7 @@ export function mergeImports(imports: ImportStatement[]): ImportStatement[] {
         const hasNamespaceImport = statement.importContents.some(c => c.name === "*")
 
         if (hasNamespaceImport) {
-            const key = `${statement.path}|||${statement.isExport}|||namespace|||${statement.start}`
+            const key = `${statement.path}|||${statement.isExport}|||namespace|||${statement.start ?? uniqueIndex++}`
             mergedMap.set(key, statement)
             continue
         }
@@ -287,8 +289,29 @@ export function mergeImports(imports: ImportStatement[]): ImportStatement[] {
         const key = `${statement.path}|||${statement.isExport}`
         const existing = mergedMap.get(key)
 
-        if (!existing) mergedMap.set(key, { ...statement })
-        else {
+        if (!existing) {
+            mergedMap.set(key, {
+                ...statement,
+                importContents: statement.importContents.map(content => ({ ...content })),
+            })
+        } else {
+            // JavaScript imports can contain only one default binding. Keep
+            // incompatible declarations separate instead of producing invalid
+            // syntax such as `import first, second from "pkg"`.
+            if (!statement.isExport) {
+                const existingDefault = existing.importContents.find(content => content.name === "default")
+                const incomingDefault = statement.importContents.find(content => content.name === "default")
+
+                if (existingDefault && incomingDefault && existingDefault.alias !== incomingDefault.alias) {
+                    mergedMap.set(`${key}|||default|||${statement.start ?? uniqueIndex++}`, {
+                        ...statement,
+                        importContents: statement.importContents.map(content => ({ ...content })),
+                    })
+
+                    continue
+                }
+            }
+
             // 合并导入内容
             const mergedContents = [...existing.importContents]
 
@@ -296,7 +319,7 @@ export function mergeImports(imports: ImportStatement[]): ImportStatement[] {
                 // 检查是否已经存在相同的导入
                 const existingContent = mergedContents.find(c => c.name === content.name && c.alias === content.alias)
 
-                if (!existingContent) mergedContents.push(content)
+                if (!existingContent) mergedContents.push({ ...content })
                 else {
                     // If the same specifier is imported as both type and value, keep the value import.
                     if (existingContent.type === "type" && content.type === "variable") existingContent.type = "variable"

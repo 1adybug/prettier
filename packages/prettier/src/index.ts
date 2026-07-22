@@ -1,5 +1,5 @@
 import { existsSync, readdirSync, statSync } from "node:fs"
-import { builtinModules, createRequire } from "node:module"
+import { builtinModules } from "node:module"
 import { join, parse, resolve } from "node:path"
 
 import blockPadding from "@1adybug/prettier-plugin-block-padding"
@@ -10,8 +10,6 @@ import * as tailwindcss from "prettier-plugin-tailwindcss"
 import { createMatchPath, loadConfig } from "tsconfig-paths"
 
 export interface Options extends RemoveBracesOptions, SortImportsOptions {}
-
-const require = createRequire(import.meta.url)
 
 function isPossibleFile(base: string, item: string) {
     if (!item.startsWith(`${base}.`)) return false
@@ -63,22 +61,6 @@ function getResolveAlias(filepath: string) {
     }
 }
 
-function hasDependency(dependency: string) {
-    const projectRequire = createRequire(join(process.cwd(), "package.json"))
-
-    try {
-        require.resolve(dependency)
-        return true
-    } catch (error) {
-        try {
-            projectRequire.resolve(dependency)
-            return true
-        } catch (error) {
-            return false
-        }
-    }
-}
-
 function isReact(path: string) {
     return /^(npm:)?react(-dom|-native)?(\/|$)/.test(path)
 }
@@ -117,22 +99,27 @@ function getModuleType(path: string, resolveAlias: ((importPath: string) => stri
     return "third-party"
 }
 
-const hasTailwindcss = hasDependency("tailwindcss")
 const tailwindcssPlugin = tailwindcss as unknown as Plugin
 
-const otherPlugins: Plugin[] = hasTailwindcss ? [blockPadding, tailwindcssPlugin, removeBraces] : [blockPadding, removeBraces]
+const otherPlugins: Plugin[] = [blockPadding, tailwindcssPlugin, removeBraces]
 
 function getResolvedPathDir(resolvedPath: string) {
-    if (existsSync(resolvedPath) && statSync(resolvedPath).isFile()) return parse(resolvedPath).dir
+    if (existsSync(resolvedPath)) return statSync(resolvedPath).isFile() ? parse(resolvedPath).dir : resolvedPath
 
     const { dir, base } = parse(resolvedPath)
+
+    // The imported target may not exist yet (generated files, CSS modules, or a
+    // newly-created module). Group it by its parent directory without letting
+    // resolution failure disable the entire import-formatting pass.
+    if (!existsSync(dir)) return dir
+
     const list = readdirSync(dir)
 
     for (const item of list) {
         if (isPossibleFile(base, item) && statSync(join(dir, item)).isFile()) return dir
     }
 
-    return resolvedPath
+    return dir
 }
 
 export const config: PluginConfig = {
@@ -155,7 +142,6 @@ export const config: PluginConfig = {
         return Number(a.isExport) - Number(b.isExport) || Number(a.isSideEffect) - Number(b.isSideEffect) || compareGroupName(a.name, b.name)
     },
     groupSeparator: "",
-    sortSideEffect: true,
     otherPlugins,
 }
 

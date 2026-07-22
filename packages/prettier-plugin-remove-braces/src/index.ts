@@ -6,6 +6,11 @@ const require = createRequire(import.meta.url)
 
 export interface Options extends PrettierOptions {
     /**
+     * 将只包含单个表达式语句的箭头函数块体转换为简写的 void 表达式。
+     * @default false
+     */
+    arrowFunctionVoid?: boolean
+    /**
      * 控制单个控制语句（if、for、while、try 等）周围大括号的处理方式。
      * @default "default"
      */
@@ -18,6 +23,8 @@ export interface Options extends PrettierOptions {
 }
 
 export interface PluginOptions extends ParserOptions {
+    /** 将只包含单个表达式语句的箭头函数块体转换为简写的 void 表达式 */
+    arrowFunctionVoid?: boolean
     /** 控制单语句是控制语句时的花括号处理方式 */
     controlStatementBraces?: "default" | "remove" | "add"
     /** 控制单语句是多行语句时的花括号处理方式 */
@@ -27,15 +34,68 @@ export interface PluginOptions extends ParserOptions {
 // Helper function to check if a statement is a lexical declaration
 function isLexicalDeclaration(node: any): boolean {
     return (
-        (node?.type === "VariableDeclaration" && (node.kind === "const" || node.kind === "let")) ||
+        (node?.type === "VariableDeclaration" && node.kind !== "var") ||
         node?.type === "FunctionDeclaration" ||
-        node?.type === "ClassDeclaration"
+        node?.type === "ClassDeclaration" ||
+        ["TSTypeAliasDeclaration", "TSInterfaceDeclaration", "TSEnumDeclaration", "TSModuleDeclaration", "TSImportEqualsDeclaration"].includes(node?.type)
     )
 }
 
 // Helper function to check if node contains comments
 function hasComments(node: any): boolean {
     return !!(node?.leadingComments?.length || node?.trailingComments?.length || node?.innerComments?.length)
+}
+
+// Comments may be attached to a nested expression instead of its containing statement.
+function hasCommentsInSubtree(node: any, visited = new WeakSet<object>()): boolean {
+    if (!node || typeof node !== "object") return false
+    if (visited.has(node)) return false
+
+    visited.add(node)
+    if (hasComments(node)) return true
+
+    for (const key in node) {
+        if (["loc", "range", "tokens", "leadingComments", "trailingComments", "innerComments"].includes(key)) continue
+
+        const value = node[key]
+
+        if (Array.isArray(value)) {
+            if (value.some(item => hasCommentsInSubtree(item, visited))) return true
+        } else if (hasCommentsInSubtree(value, visited)) return true
+    }
+
+    return false
+}
+
+function getNodeRange(node: any): [number, number] | undefined {
+    if (Array.isArray(node?.range)) return [node.range[0], node.range[1]]
+    if (typeof node?.start === "number" && typeof node?.end === "number") return [node.start, node.end]
+
+    return undefined
+}
+
+function hasCommentsInRange(node: any, comments: any[]): boolean {
+    const nodeRange = getNodeRange(node)
+
+    if (!nodeRange) return false
+
+    return comments.some(comment => {
+        const commentRange = getNodeRange(comment)
+
+        return !!commentRange && commentRange[0] >= nodeRange[0] && commentRange[1] <= nodeRange[1]
+    })
+}
+
+// Different parsers attach comments to different nodes. Check both the AST
+// subtree and the root comment list before removing a syntactic boundary.
+function blockHasComments(block: any, comments: any[]): boolean {
+    return hasCommentsInSubtree(block) || hasCommentsInRange(block, comments)
+}
+
+function hasDirectivePrologue(block: any): boolean {
+    if (Array.isArray(block?.directives) && block.directives.length > 0) return true
+
+    return Array.isArray(block?.body) && block.body.some((statement: any) => typeof statement?.directive === "string")
 }
 
 // Helper function to copy location info from outer node to inner node
@@ -69,43 +129,109 @@ function isControlStatement(node: any): boolean {
     ].includes(node?.type)
 }
 
-// Helper function to check if a statement spans multiple lines
-// 检查语句是否跨多行
-function isMultilineStatement(node: any): boolean {
+function expressionMayWrap(node: any): boolean {
+    if (!node) return false
+
+    if (
+        [
+            "ParenthesizedExpression",
+            "TSAsExpression",
+            "TSSatisfiesExpression",
+            "TSTypeAssertion",
+            "TSNonNullExpression",
+            "TSInstantiationExpression",
+            "ChainExpression",
+        ].includes(node.type)
+    )
+        return expressionMayWrap(node.expression)
+
+    if (node.type === "UnaryExpression" || node.type === "YieldExpression" || node.type === "AwaitExpression") return expressionMayWrap(node.argument)
+
+    return [
+        "ArrayExpression",
+        "ArrowFunctionExpression",
+        "AssignmentExpression",
+        "BinaryExpression",
+        "CallExpression",
+        "ClassExpression",
+        "ConditionalExpression",
+        "FunctionExpression",
+        "JSXElement",
+        "JSXFragment",
+        "LogicalExpression",
+        "NewExpression",
+        "ObjectExpression",
+        "OptionalCallExpression",
+        "SequenceExpression",
+    ].includes(node.type)
+}
+
+function statementMayWrap(node: any): boolean {
+    if (node?.type === "ExpressionStatement" || node?.type === "ReturnStatement" || node?.type === "ThrowStatement")
+        return expressionMayWrap(node.expression ?? node.argument)
+
+    if (node?.type === "VariableDeclaration") return node.declarations?.some((declaration: any) => expressionMayWrap(declaration.init)) ?? false
+
+    return false
+}
+
+// Check both source line spans and predictable width-based wrapping. Without
+// the latter, an unbraced long call gets braces only on the second format pass.
+function isMultilineStatement(node: any, options: TransformASTOptions): boolean {
     if (!node?.loc) return false
 
-    return node.loc.start.line !== node.loc.end.line
+    if (node.loc.start.line !== node.loc.end.line) return true
+
+    const printWidth = options.printWidth
+    const range = getNodeRange(node)
+
+    return (
+        typeof printWidth === "number" &&
+        printWidth > 0 &&
+        !!range &&
+        statementMayWrap(node) &&
+        (node.loc.start.column ?? 0) + (range[1] - range[0]) > printWidth
+    )
 }
 
 // Helper function to check if removing braces would cause dangling else issue
+function canAbsorbElse(node: any): boolean {
+    if (!node) return false
+
+    if (node.type === "IfStatement") return !node.alternate || canAbsorbElse(node.alternate)
+
+    if (["ForStatement", "ForInStatement", "ForOfStatement", "WhileStatement", "WithStatement", "LabeledStatement"].includes(node.type))
+        return canAbsorbElse(node.body)
+
+    return false
+}
+
 function wouldCauseDanglingElse(ifNode: any): boolean {
     if (!ifNode || ifNode.type !== "IfStatement") return false
 
     const consequent = ifNode.consequent
     if (!consequent || consequent.type !== "BlockStatement") return false
 
-    // Check if the block contains only one if statement without else
-    if (consequent.body.length === 1 && consequent.body[0].type === "IfStatement") {
-        const innerIf = consequent.body[0]
-
-        // If inner if has no else branch but outer if has else branch, removing braces would cause dangling else
-        if (!innerIf.alternate && ifNode.alternate) return true
-    }
-
-    return false
+    // Any short-if chain can capture the outer else after braces are removed.
+    return !!ifNode.alternate && consequent.body.length === 1 && canAbsorbElse(consequent.body[0])
 }
 
 /** transformAST 函数的选项 */
 export interface TransformASTOptions {
+    /** 将只包含单个表达式语句的箭头函数块体转换为简写的 void 表达式 */
+    arrowFunctionVoid?: boolean
     /** 控制单语句是控制语句时的花括号处理方式 */
     controlStatementBraces?: "default" | "remove" | "add"
     /** 控制单语句是多行语句时的花括号处理方式 */
     multiLineBraces?: "default" | "remove" | "add"
+    /** Prettier line width, used to predict wrapping before the first print. */
+    printWidth?: number
 }
 
 interface TransformContext {
     parent?: any
     parentKey?: string
+    comments?: any[]
 }
 
 // Certain parents (e.g. function bodies, try/catch) syntactically require a BlockStatement
@@ -139,6 +265,8 @@ function isBlockRequiredContext(context: TransformContext): boolean {
 function transformAST(ast: any, options: TransformASTOptions = {}, context: TransformContext = {}): any {
     if (!ast || typeof ast !== "object") return ast
 
+    const comments = context.comments ?? (Array.isArray(ast.comments) ? ast.comments : [])
+
     // Handle ArrowFunctionExpression
     if (ast.type === "ArrowFunctionExpression" && ast.body?.type === "BlockStatement") {
         const block = ast.body
@@ -147,8 +275,10 @@ function transformAST(ast: any, options: TransformASTOptions = {}, context: Tran
         if (
             block.body.length === 1 &&
             block.body[0].type === "ReturnStatement" &&
+            !hasDirectivePrologue(block) &&
             !hasComments(block.body[0]) && // Check comment on return statement
             !hasComments(block) &&
+            !hasCommentsInRange(ast, comments) &&
             !isLexicalDeclaration(block.body[0])
         ) {
             const returnStatement = block.body[0]
@@ -173,6 +303,32 @@ function transformAST(ast: any, options: TransformASTOptions = {}, context: Tran
                 body: copyLocationInfo(argument || { type: "Identifier", name: "undefined" }, block),
             }
         }
+
+        const expressionStatement = block.body[0]
+
+        if (
+            options.arrowFunctionVoid &&
+            block.body.length === 1 &&
+            expressionStatement.type === "ExpressionStatement" &&
+            !hasDirectivePrologue(block) &&
+            !expressionStatement.directive &&
+            !hasCommentsInSubtree(block) &&
+            !hasCommentsInRange(ast, comments)
+        ) {
+            const voidExpression = {
+                type: "UnaryExpression",
+                operator: "void",
+                prefix: true,
+                argument: expressionStatement.expression,
+            }
+
+            voidExpression.argument = transformAST(voidExpression.argument, options, { parent: voidExpression, parentKey: "argument", comments })
+
+            return {
+                ...ast,
+                body: copyLocationInfo(voidExpression, block),
+            }
+        }
     }
 
     // Handle IfStatement
@@ -183,7 +339,7 @@ function transformAST(ast: any, options: TransformASTOptions = {}, context: Tran
         if (
             ast.consequent?.type === "BlockStatement" &&
             ast.consequent.body.length === 1 &&
-            !hasComments(ast.consequent) &&
+            !blockHasComments(ast.consequent, comments) &&
             !isLexicalDeclaration(ast.consequent.body[0]) &&
             !wouldCauseDanglingElse(ast)
         ) {
@@ -194,7 +350,7 @@ function transformAST(ast: any, options: TransformASTOptions = {}, context: Tran
                 if (options.controlStatementBraces === "remove") transformed.consequent = copyLocationInfo(innerStatement, ast.consequent)
                 // "default" 和 "add" 模式：保持大括号
             } else {
-                if (isMultilineStatement(innerStatement)) {
+                if (isMultilineStatement(innerStatement, options)) {
                     // 内部是多行语句，根据 multiLineBraces 选项决定
                     if (options.multiLineBraces === "remove") transformed.consequent = copyLocationInfo(innerStatement, ast.consequent)
                     // "default" 和 "add" 模式：保持大括号
@@ -208,7 +364,7 @@ function transformAST(ast: any, options: TransformASTOptions = {}, context: Tran
         if (
             ast.alternate?.type === "BlockStatement" &&
             ast.alternate.body.length === 1 &&
-            !hasComments(ast.alternate) &&
+            !blockHasComments(ast.alternate, comments) &&
             !isLexicalDeclaration(ast.alternate.body[0])
         ) {
             const innerStatement = ast.alternate.body[0]
@@ -218,7 +374,7 @@ function transformAST(ast: any, options: TransformASTOptions = {}, context: Tran
                 if (options.controlStatementBraces === "remove") transformed.alternate = copyLocationInfo(innerStatement, ast.alternate)
                 // "default" 和 "add" 模式：保持大括号
             } else {
-                if (isMultilineStatement(innerStatement)) {
+                if (isMultilineStatement(innerStatement, options)) {
                     // 内部是多行语句，根据 multiLineBraces 选项决定
                     if (options.multiLineBraces === "remove") transformed.alternate = copyLocationInfo(innerStatement, ast.alternate)
                     // "default" 和 "add" 模式：保持大括号
@@ -259,7 +415,12 @@ function transformAST(ast: any, options: TransformASTOptions = {}, context: Tran
 
         // Handle "add" mode for multiLineBraces - 如果内部是多行语句且没有大括号，添加大括号
         if (options.multiLineBraces === "add") {
-            if (ast.consequent && !isControlStatement(ast.consequent) && ast.consequent.type !== "BlockStatement" && isMultilineStatement(ast.consequent)) {
+            if (
+                ast.consequent &&
+                !isControlStatement(ast.consequent) &&
+                ast.consequent.type !== "BlockStatement" &&
+                isMultilineStatement(ast.consequent, options)
+            ) {
                 transformed.consequent = copyLocationInfo(
                     {
                         type: "BlockStatement",
@@ -269,7 +430,12 @@ function transformAST(ast: any, options: TransformASTOptions = {}, context: Tran
                 )
             }
 
-            if (ast.alternate && !isControlStatement(ast.alternate) && ast.alternate.type !== "BlockStatement" && isMultilineStatement(ast.alternate)) {
+            if (
+                ast.alternate &&
+                !isControlStatement(ast.alternate) &&
+                ast.alternate.type !== "BlockStatement" &&
+                isMultilineStatement(ast.alternate, options)
+            ) {
                 transformed.alternate = copyLocationInfo(
                     {
                         type: "BlockStatement",
@@ -281,8 +447,8 @@ function transformAST(ast: any, options: TransformASTOptions = {}, context: Tran
         }
 
         // Recursively transform nested if statements
-        transformed.consequent = transformAST(transformed.consequent, options, { parent: transformed, parentKey: "consequent" })
-        transformed.alternate = transformAST(transformed.alternate, options, { parent: transformed, parentKey: "alternate" })
+        transformed.consequent = transformAST(transformed.consequent, options, { parent: transformed, parentKey: "consequent", comments })
+        transformed.alternate = transformAST(transformed.alternate, options, { parent: transformed, parentKey: "alternate", comments })
 
         return transformed
     }
@@ -297,7 +463,7 @@ function transformAST(ast: any, options: TransformASTOptions = {}, context: Tran
         if (ast.body?.type === "BlockStatement") {
             const block = ast.body
 
-            if (block.body.length === 1 && !hasComments(block) && !isLexicalDeclaration(block.body[0])) {
+            if (block.body.length === 1 && !blockHasComments(block, comments) && !isLexicalDeclaration(block.body[0])) {
                 const innerStatement = block.body[0]
 
                 if (isControlStatement(innerStatement)) {
@@ -305,7 +471,7 @@ function transformAST(ast: any, options: TransformASTOptions = {}, context: Tran
                     if (options.controlStatementBraces === "remove") transformed.body = copyLocationInfo(innerStatement, block)
                     // "default" 和 "add" 模式：保持大括号
                 } else {
-                    if (isMultilineStatement(innerStatement)) {
+                    if (isMultilineStatement(innerStatement, options)) {
                         // 内部是多行语句，根据 multiLineBraces 选项决定
                         if (options.multiLineBraces === "remove") transformed.body = copyLocationInfo(innerStatement, block)
                         // "default" 和 "add" 模式：保持大括号
@@ -333,7 +499,7 @@ function transformAST(ast: any, options: TransformASTOptions = {}, context: Tran
             ast.body &&
             !isControlStatement(ast.body) &&
             ast.body.type !== "BlockStatement" &&
-            isMultilineStatement(ast.body)
+            isMultilineStatement(ast.body, options)
         ) {
             transformed.body = copyLocationInfo(
                 {
@@ -345,7 +511,7 @@ function transformAST(ast: any, options: TransformASTOptions = {}, context: Tran
         }
 
         // Recursively transform loop body
-        transformed.body = transformAST(transformed.body, options, { parent: transformed, parentKey: "body" })
+        transformed.body = transformAST(transformed.body, options, { parent: transformed, parentKey: "body", comments })
 
         return transformed
     }
@@ -355,19 +521,20 @@ function transformAST(ast: any, options: TransformASTOptions = {}, context: Tran
         options.controlStatementBraces === "remove" &&
         ast.type === "BlockStatement" &&
         ast.body.length === 1 &&
-        !hasComments(ast) &&
+        !blockHasComments(ast, comments) &&
         !isLexicalDeclaration(ast.body[0]) &&
         isControlStatement(ast.body[0]) &&
+        !(context.parentKey === "consequent" && wouldCauseDanglingElse(context.parent)) &&
         !isBlockRequiredContext(context)
     )
         return copyLocationInfo(ast.body[0], ast)
 
     // Recursively transform all child nodes
     for (const key in ast) {
-        if (Array.isArray(ast[key])) ast[key] = ast[key].map(item => transformAST(item, options, { parent: ast, parentKey: key }))
+        if (Array.isArray(ast[key])) ast[key] = ast[key].map(item => transformAST(item, options, { parent: ast, parentKey: key, comments }))
         else {
             if (ast[key] && typeof ast[key] === "object" && key !== "loc" && key !== "range" && key !== "tokens")
-                ast[key] = transformAST(ast[key], options, { parent: ast, parentKey: key })
+                ast[key] = transformAST(ast[key], options, { parent: ast, parentKey: key, comments })
         }
     }
 
@@ -382,7 +549,7 @@ const PROCESSING_MARKER = Symbol.for("prettier-plugin-remove-braces-processing")
 
 // 创建带有 __transformAST 属性的 parser
 // __transformAST 用于支持多插件链式调用，它会在 AST 解析后被调用
-function createParserWithTransform(parserName: "typescript" | "babel") {
+function createParserWithTransform(parserName: "typescript" | "babel" | "babel-ts") {
     const modulePath = parserName === "typescript" ? "prettier/plugins/typescript" : "prettier/plugins/babel"
     const originalParser = require(modulePath).parsers[parserName]
 
@@ -443,13 +610,14 @@ export const plugin: Plugin = {
         },
         {
             name: "babel",
-            parsers: ["babel"],
+            parsers: ["babel", "babel-ts"],
             extensions: [".js", ".jsx", ".mjs", ".cjs"],
         },
     ] as SupportLanguage[],
     parsers: {
         typescript: createParserWithTransform("typescript"),
         babel: createParserWithTransform("babel"),
+        "babel-ts": createParserWithTransform("babel-ts"),
     },
     printers: {
         "typescript-estree": {
@@ -488,6 +656,11 @@ export const plugin: Plugin = {
         },
     },
     options: {
+        arrowFunctionVoid: {
+            type: "boolean",
+            default: false,
+            description: "Convert single-expression arrow function blocks to concise void expression bodies",
+        },
         controlStatementBraces: {
             type: "choice",
             default: "default",

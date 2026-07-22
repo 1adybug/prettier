@@ -29,7 +29,10 @@
     - **对象字面量返回**: 如果返回的是对象字面量，移除大括号后必须确保打印时包裹圆括号 `()`。
         - `input`: `() => { return { key: 'value' }; }`
         - `output`: `() => ({ key: 'value' })`
-    - **非 Return 语句**: 如果块内只有一条语句但不是 `return`（例如 `void` 调用），通常不转换，或者根据配置处理（但在本项目中，默认仅处理 `return` 语句以保证安全）。
+    - **非 Return 表达式语句**: 默认不转换。启用 `arrowFunctionVoid` 后，如果块内恰好只有一条无注释的表达式语句，则转换为 `void` 简写体，以保持原来的 `undefined` 返回值。
+        - `input`: `() => { doSomething(); }`
+        - `output`: `() => void doSomething()`
+        - 包含注释、指令或多条语句时不转换。
 
 ### 3.2 条件语句 (IfStatement)
 

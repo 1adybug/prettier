@@ -9,6 +9,7 @@ A Prettier plugin that automatically removes unnecessary braces from JavaScript/
 ## Features
 
 - ✅ **Arrow Functions**: Converts `() => { return x; }` to `() => x`
+- ✅ **Void Arrow Functions**: Optionally converts `() => { doSomething() }` to `() => void doSomething()`
 - ✅ **Object Literal Returns**: Properly wraps returned objects: `() => { return { a: 1 }; }` → `() => ({ a: 1 })`
 - ✅ **If Statements**: Removes braces from single-statement blocks: `if (cond) { stmt(); }` → `if (cond) stmt();`
 - ✅ **Loops**: Supports `for`, `while`, `do-while`, `for-in`, and `for-of` loops
@@ -41,6 +42,7 @@ Add the plugin to your Prettier configuration:
 ```js
 module.exports = {
     plugins: ["prettier-plugin-remove-braces"],
+    arrowFunctionVoid: true,
     controlStatementBraces: "remove", // Options: "default" | "remove" | "add"
     // ... your other prettier options
 }
@@ -51,6 +53,7 @@ module.exports = {
 ```json
 {
     "plugins": ["prettier-plugin-remove-braces"],
+    "arrowFunctionVoid": true,
     "controlStatementBraces": "remove"
 }
 ```
@@ -128,6 +131,27 @@ if (a) {
 ```
 
 ## Options
+
+### `arrowFunctionVoid` (boolean, default: `false`)
+
+When enabled, converts an arrow function block containing exactly one expression statement into a concise `void` expression body. This preserves the original `undefined` return value while removing the braces.
+
+```javascript
+// Before
+const run = () => {
+    doSomething()
+}
+
+const assign = () => {
+    value = getValue()
+}
+
+// After
+const run = () => void doSomething()
+const assign = () => void (value = getValue())
+```
+
+Blocks containing comments, directives, multiple statements, or non-expression statements are preserved. Explicit `return` statements continue to use the plugin's existing implicit-return conversion.
 
 ### `controlStatementBraces` (choice, default: "default")
 
@@ -274,13 +298,13 @@ cd prettier-plugin-remove-braces
 npm install
 
 # Build the plugin
-npm run build
+nub run build
 
 # Run tests
 npm test
 
 # Watch for changes during development
-npm run dev
+nub run dev
 ```
 
 ## Testing

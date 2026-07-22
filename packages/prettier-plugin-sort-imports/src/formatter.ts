@@ -120,7 +120,9 @@ export function formatImportStatement(statement: ImportStatement, trailingComma?
         const typeKeyword = shouldUseTypeOnlyDeclaration ? "type " : ""
         const defaultPart = parts.length > 0 ? parts.join(", ") + ", " : ""
         const importStart = `${keyword} ${typeKeyword}${defaultPart}{`
-        const importEnd = `} from "${path}"`
+        let importEnd = `} from "${path}"`
+
+        if (trailingComments && trailingComments.length > 0) importEnd += ` ${trailingComments.join(" ")}`
 
         const formatWithTrailingComma = (item: string) => {
             const lines = item.split("\n")

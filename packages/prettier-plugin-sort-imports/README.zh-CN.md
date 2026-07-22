@@ -443,6 +443,10 @@ import "f-side-effect"
 import "f-side-effect"
 ```
 
+### 无损安全降级
+
+当文件包含 import attributes/assertions、仅类型星号导出、字符串名称说明符、namespace re-export，或当前归一化模型无法还原的行内 import 注释时，插件会跳过该文件的 import 重写，但组合的其他 Prettier 插件仍会继续运行。由于修改导入可能影响装饰器元数据生成，带装饰器的文件也会跳过 `markTypeOnlyImports`。TypeScript namespace、枚举初始化值、参数属性、export assignment 和 import-equals 别名中的运行时引用会按值使用处理。检测到 JSDoc 类型标签时，由于当前 AST 分析无法无损解析其中的引用，插件会仅跳过 `removeUnusedImports`。
+
 ### groupSeparator
 
 分组之间的分隔符，默认为 `undefined`（无分隔符）。
