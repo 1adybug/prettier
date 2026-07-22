@@ -1,5 +1,11 @@
 # @1adybug/prettier-plugin-sort-imports
 
+## 0.0.35
+
+### Patch Changes
+
+- 9614e98: Preserve configured group separators around side-effect imports without reordering them.
+
 ## 0.0.34
 
 ### Patch Changes
