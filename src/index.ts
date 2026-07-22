@@ -1,7 +1,7 @@
 import { createRequire } from "node:module"
 
 import type { ConfigWithExtends, ExtendsElement } from "@eslint/config-helpers"
-import type { RulesConfig } from "@eslint/core"
+import type { Plugin, RulesConfig } from "@eslint/core"
 import js from "@eslint/js"
 import { defineConfig as _defineConfig, globalIgnores } from "eslint/config"
 import globals from "globals"
@@ -30,6 +30,10 @@ const noInlineObjectTypeMessage = "Avoid inline object type literals. Define a t
 
 const noInlineObjectTypeSelector = "TSTypeLiteral:not(TSTypeAliasDeclaration > TSTypeLiteral)"
 
+const noEnumMessage = "Avoid enums. Use an as const object and infer its value type instead."
+
+const noEnumSelector = "TSEnumDeclaration"
+
 const defaultRules: RulesConfig = {
     "@typescript-eslint/no-explicit-any": "off",
     "@typescript-eslint/no-empty-object-type": "off",
@@ -46,9 +50,22 @@ const defaultRules: RulesConfig = {
         },
     ],
     "prefer-const": [
-        "off",
+        "warn",
         {
             destructuring: "any",
+        },
+    ],
+    "prefer-template": "warn",
+    "prefer-arrow-callback": "warn",
+    "arrow-body-style": ["warn", "as-needed"],
+    "max-params": "off",
+    "@typescript-eslint/max-params": ["warn", { max: 2 }],
+    "@typescript-eslint/consistent-type-definitions": ["warn", "interface"],
+    "@typescript-eslint/naming-convention": [
+        "warn",
+        {
+            selector: "typeLike",
+            format: ["PascalCase"],
         },
     ],
     "no-restricted-syntax": [
@@ -56,6 +73,21 @@ const defaultRules: RulesConfig = {
         {
             selector: noInlineObjectTypeSelector,
             message: noInlineObjectTypeMessage,
+        },
+        {
+            selector: noEnumSelector,
+            message: noEnumMessage,
+        },
+    ],
+}
+
+const defaultReactRules: RulesConfig = {
+    "react/jsx-fragments": ["warn", "element"],
+    "react/self-closing-comp": [
+        "warn",
+        {
+            component: true,
+            html: true,
         },
     ],
 }
@@ -400,6 +432,22 @@ export function defineConfig({ next, react, node, target, directories, ignores, 
     const configWithExtends: ConfigWithExtends[] = createScopedExtends([js.configs.recommended, ...tseslint.configs.recommended], baseScopes)
 
     if (reactFeature.enabled) {
+        if (!nextFeature.enabled || !nextFeature.recommended) {
+            const reactPlugin = requireCached<Plugin>("eslint-plugin-react")
+
+            configWithExtends.push(
+                ...createScopedExtends(
+                    [
+                        {
+                            plugins: { react: reactPlugin },
+                            settings: { react: { version: "detect" } },
+                        },
+                    ],
+                    browserScopes,
+                ),
+            )
+        }
+
         if (reactFeature.recommended) {
             const reactHooks = requireCached<typeof import("eslint-plugin-react-hooks")>("eslint-plugin-react-hooks")
             const reactRefresh = requireCached<typeof import("eslint-plugin-react-refresh")>("eslint-plugin-react-refresh")
@@ -442,6 +490,7 @@ export function defineConfig({ next, react, node, target, directories, ignores, 
 
     const browserRules: RulesConfig = {
         ...mergedBaseRules,
+        ...(reactFeature.enabled ? defaultReactRules : {}),
         ...(reactFeature.enabled && reactFeature.recommended
             ? {
                   "react-refresh/only-export-components": "off",
