@@ -1,0 +1,71 @@
+{
+    "name": "@1adybug/eslint",
+    "version": "0.0.12",
+    "type": "module",
+    "description": "推荐的 ESLint 配置",
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.js",
+            "require": "./dist/index.cjs"
+        }
+    },
+    "main": "./dist/index.cjs",
+    "types": "./dist/index.d.ts",
+    "files": [
+        "dist"
+    ],
+    "scripts": {
+        "build": "rslib build",
+        "dev": "rslib build --watch",
+        "test": "rslib build && tsc -p test/types/tsconfig.json && nub --test test/index.test.mjs",
+        "test:types": "rslib build && tsc -p test/types/tsconfig.json",
+        "test:coverage": "rslib build && tsc -p test/types/tsconfig.json && nub --test --experimental-test-coverage --test-coverage-include=dist/index.js --test-coverage-lines=95 --test-coverage-branches=90 --test-coverage-functions=95 test/index.test.mjs",
+        "prepublishOnly": "rslib build",
+        "format": "prettier --write .",
+        "fg": "prettier --write . && git add . && git commit -m \"✨feature: format\"",
+        "prepare": "husky"
+    },
+    "publishConfig": {
+        "access": "public",
+        "registry": "https://registry.npmjs.com/"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/1adybug/eslint.git"
+    },
+    "homepage": "https://github.com/1adybug/eslint",
+    "bugs": {
+        "url": "https://github.com/1adybug/eslint/issues"
+    },
+    "dependencies": {
+        "@eslint/js": "^9.39.4",
+        "@next/eslint-plugin-next": "^16.2.10",
+        "eslint-config-next": "^16.2.10",
+        "eslint-plugin-n": "^18.2.1",
+        "eslint-plugin-react": "^7.37.5",
+        "eslint-plugin-react-hooks": "^7.0.1",
+        "eslint-plugin-react-refresh": "^0.5.3",
+        "globals": "^17.7.0",
+        "typescript-eslint": "^8.63.0"
+    },
+    "devDependencies": {
+        "@1adybug/prettier": "^0.0.31",
+        "@eslint/config-helpers": "^0.6.0",
+        "@eslint/core": "^1.1.1",
+        "@rslib/core": "^0.23.2",
+        "@types/node": "^24.12.0",
+        "husky": "^9.1.7",
+        "lint-staged": "^17.0.8",
+        "next": "^16.2.10",
+        "prettier": "^3.9.4",
+        "react": "^19.0.0",
+        "typescript": "^6.0.3"
+    },
+    "peerDependencies": {
+        "eslint": "^9.39.4"
+    },
+    "lint-staged": {
+        "**/*": "prettier --write --ignore-unknown"
+    }
+}
