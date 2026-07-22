@@ -1,5 +1,15 @@
 # @1adybug/prettier
 
+## 0.0.32
+
+### Patch Changes
+
+- 4c6b9ea: Add the `arrowFunctionVoid` option and make brace transforms comment- and directive-safe and idempotent across width-based wrapping while skipping expressions that cannot safely be predicted. Preserve unsupported import syntax, comments, incompatible default imports, side-effect order, TypeScript runtime references, and JSDoc type imports while composing parser options correctly. Recognize export-wrapped and static-block padding targets, delegate directive-bearing or otherwise unsafe statement containers and commented empty blocks to Prettier, and load the bundled Tailwind integration consistently.
+- Updated dependencies [4c6b9ea]
+    - @1adybug/prettier-plugin-remove-braces@0.0.15
+    - @1adybug/prettier-plugin-sort-imports@0.0.34
+    - @1adybug/prettier-plugin-block-padding@0.0.21
+
 ## 0.0.31
 
 ### Patch Changes
