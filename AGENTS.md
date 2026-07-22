@@ -4,8 +4,10 @@ You are an expert in JavaScript, Rspack, Rsbuild, Rslib, and library development
 
 ## Commands
 
-- `bun run build` - Build the library for production
-- `bun run dev` - Turn on watch mode, watch for changes and rebuild the library
+- `nub run build` - Build the library for production
+- `nub run dev` - Turn on watch mode, watch for changes and rebuild the library
+- `nub run test` - Build and run the test suite
+- `nub run test:coverage` - Build, run tests, and enforce coverage thresholds
 
 ## Docs
 

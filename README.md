@@ -5,7 +5,7 @@
 ## 安装
 
 ```bash
-bun add -d eslint @1adybug/eslint
+pnpm add -D eslint @1adybug/eslint
 ```
 
 ## 快速开始
@@ -65,11 +65,11 @@ export default defineConfig({
    当 `target !== "browser"` 时默认启用 Node 规则。
 4. Node 默认版本  
    目标项目未配置 `package.json.engines.node` 时，默认按 `>=24.0.0` 处理；可通过 `node.version` 覆盖。
-5. 目录默认值  
-   Next + both: `web = ["**/*.{js,mjs,ts,tsx}"]`，`node = ["shared/**/*.{js,mjs,ts,tsx}", "prisma/**/*.{js,mjs,ts,tsx}", "server/**/*.{js,mjs,ts,tsx}"]`。  
-   browser: `web = ["**/*.{js,mjs,ts,tsx}"]`。  
-   node: `node = ["**/*.{js,mjs,ts,tsx}"]`。  
-   both: `mixed = ["**/*.{js,mjs,ts,tsx}"]`。
+5. 目录默认值
+    - Next + both: `web = ["**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}"]`，`node = ["shared/**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}", "prisma/**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}", "server/**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}"]`。
+    - browser: `web = ["**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}"]`。
+    - node: `node = ["**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}"]`。
+    - both: `mixed = ["**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}"]`。
 6. 默认忽略目录  
    `node_modules/**`, `out/**`, `build/**`, `dist/**`, `public/**`。
 7. Next 额外忽略  
@@ -173,6 +173,9 @@ export default defineConfig({
 ## 本仓库开发命令
 
 ```bash
-bun run build
-bun run dev
+nub run build
+nub run dev
+nub run test
+nub run test:types
+nub run test:coverage
 ```

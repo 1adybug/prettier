@@ -16,8 +16,6 @@ doc_build/
 
 package-lock.json
 pnpm-lock.yaml
-bun.lockb
-bun.lock
 dist*
 build
 yarn.lock
@@ -25,3 +23,5 @@ yarn-error.log
 .yarnrc.yml
 .yarn
 test*
+!test/
+!test/**

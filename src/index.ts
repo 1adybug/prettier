@@ -9,9 +9,13 @@ import tseslint from "typescript-eslint"
 
 const require = createRequire(import.meta.url)
 
-const allFiles = ["**/*.{js,mjs,ts,tsx}"]
+const allFiles = ["**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}"]
 
-const nextDefaultNodeFiles = ["shared/**/*.{js,mjs,ts,tsx}", "prisma/**/*.{js,mjs,ts,tsx}", "server/**/*.{js,mjs,ts,tsx}"]
+const nextDefaultNodeFiles = [
+    "shared/**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}",
+    "prisma/**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}",
+    "server/**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}",
+]
 
 const defaultIgnores = ["node_modules/**", "out/**", "build/**", "dist/**", "public/**"]
 
@@ -108,13 +112,23 @@ type MaybeArray<T> = T | T[]
 
 type GlobInput = string | string[]
 
-type RuntimeTarget = "browser" | "node" | "both"
+const runtimeTargets = ["browser", "node", "both"] as const
+
+type RuntimeTarget = (typeof runtimeTargets)[number]
 
 type FeatureInput<T extends BaseFeatureOptions = BaseFeatureOptions> = boolean | T
 
 type FeatureExtend = ExtendsElement
 
-type NodePluginRuntime = {
+type ConfigurablePlugin = Plugin & {
+    configs?: Record<string, unknown>
+}
+
+type PluginModule = ConfigurablePlugin & {
+    default?: ConfigurablePlugin
+}
+
+type NodePluginRuntime = ConfigurablePlugin & {
     configs: Record<string, unknown>
 }
 
@@ -239,6 +253,11 @@ function getDefaultTarget(nextEnabled: boolean, reactEnabled: boolean): RuntimeT
     return "node"
 }
 
+function assertValidTarget(target: RuntimeTarget | undefined) {
+    if (target !== undefined && !runtimeTargets.includes(target))
+        throw new Error(`Unknown runtime target "${target}". Expected one of: ${runtimeTargets.join(", ")}.`)
+}
+
 function getDefaultDirectories(nextEnabled: boolean, target: RuntimeTarget): ResolvedDirectories {
     if (nextEnabled && target === "both") {
         return {
@@ -273,9 +292,9 @@ function getDefaultDirectories(nextEnabled: boolean, target: RuntimeTarget): Res
 
 function resolveDirectories(directories: RuntimeDirectories | undefined, defaults: ResolvedDirectories): ResolvedDirectories {
     const resolved: ResolvedDirectories = {
-        web: directories?.web === undefined ? defaults.web : toGlobs(directories.web),
-        node: directories?.node === undefined ? defaults.node : toGlobs(directories.node),
-        mixed: directories?.mixed === undefined ? defaults.mixed : toGlobs(directories.mixed),
+        web: unique(directories?.web === undefined ? defaults.web : toGlobs(directories.web)),
+        node: unique(directories?.node === undefined ? defaults.node : toGlobs(directories.node)),
+        mixed: unique(directories?.mixed === undefined ? defaults.mixed : toGlobs(directories.mixed)),
     }
 
     if (resolved.web.length === 0 && resolved.node.length === 0 && resolved.mixed.length === 0) resolved.mixed = allFiles
@@ -327,20 +346,51 @@ function normalizeScopes(scopes: FeatureScope[]) {
     return Array.from(map.values())
 }
 
-function toTopLevelConfig(extend: FeatureExtend): ConfigWithExtends {
-    if (typeof extend === "string" || Array.isArray(extend)) return { extends: [extend] }
-    return extend as ConfigWithExtends
+function getPluginConfig(plugin: ConfigurablePlugin, configName: string) {
+    const directConfig = plugin.configs?.[configName]
+    if (directConfig !== undefined) return directConfig
+
+    let nestedConfig: unknown = plugin.configs
+
+    for (const segment of configName.split("/")) {
+        if (!nestedConfig || typeof nestedConfig !== "object" || !(segment in nestedConfig)) return undefined
+        nestedConfig = (nestedConfig as Record<string, unknown>)[segment]
+    }
+
+    return nestedConfig
 }
 
-function createScopedExtends(extendsItems: FeatureExtend[], scopes: FeatureScope[]) {
-    if (extendsItems.length === 0) return []
+function resolveKnownStringExtends(extendsItems: FeatureExtend[], stringPlugins: Record<string, ConfigurablePlugin> | undefined) {
+    if (!stringPlugins) return extendsItems
+
+    const pluginEntries = Object.entries(stringPlugins).sort(([left], [right]) => right.length - left.length)
+
+    return extendsItems.flatMap<FeatureExtend>(extend => {
+        if (typeof extend !== "string") return [extend]
+
+        const pluginEntry = pluginEntries.find(([pluginName]) => extend.startsWith(`${pluginName}/`))
+        if (!pluginEntry) return [extend]
+
+        const [pluginName, plugin] = pluginEntry
+        const configName = extend.slice(pluginName.length + 1)
+        const pluginConfig = getPluginConfig(plugin, configName)
+
+        if (pluginConfig === undefined) throw new Error(`Plugin config "${configName}" not found in plugin "${pluginName}".`)
+
+        return normalizeUnknownExtends(pluginConfig)
+    })
+}
+
+function createScopedExtends(extendsItems: FeatureExtend[], scopes: FeatureScope[], stringPlugins?: Record<string, ConfigurablePlugin>) {
+    const resolvedExtends = resolveKnownStringExtends(extendsItems, stringPlugins)
+    if (resolvedExtends.length === 0) return []
 
     const resolvedScopes = normalizeScopes(scopes)
-    if (resolvedScopes.length === 0) return extendsItems.map(item => toTopLevelConfig(item))
+    if (resolvedScopes.length === 0) return []
 
     const scopedConfigs: ConfigWithExtends[] = []
 
-    for (const config of extendsItems) {
+    for (const config of resolvedExtends) {
         for (const scope of resolvedScopes) {
             scopedConfigs.push({
                 files: scope.files,
@@ -403,7 +453,25 @@ function createTypeAwareConfig(scopes: FeatureScope[], rules: RulesConfig) {
     }))
 }
 
+function withoutTypeAwareRules(rules: RulesConfig) {
+    return Object.fromEntries(Object.entries(rules).filter(([ruleId]) => !(ruleId in defaultTypeAwareRules))) as RulesConfig
+}
+
+function resolveTypeAwareRules(...ruleSets: RulesConfig[]) {
+    const resolvedRules: RulesConfig = { ...defaultTypeAwareRules }
+
+    for (const rules of ruleSets) {
+        for (const ruleId of Object.keys(defaultTypeAwareRules)) {
+            if (ruleId in rules) resolvedRules[ruleId] = rules[ruleId]
+        }
+    }
+
+    return resolvedRules
+}
+
 export function defineConfig({ next, react, node, target, directories, ignores, rules }: DefineConfigParams = {}) {
+    assertValidTarget(target)
+
     const nextFeature = resolveFeature(next, hasDependency("next"))
     const reactFeature = resolveFeature(react, hasDependency("react") || nextFeature.enabled)
     const resolvedTarget = target ?? getDefaultTarget(nextFeature.enabled, reactFeature.enabled)
@@ -432,9 +500,9 @@ export function defineConfig({ next, react, node, target, directories, ignores, 
     const configWithExtends: ConfigWithExtends[] = createScopedExtends([js.configs.recommended, ...tseslint.configs.recommended], baseScopes)
 
     if (reactFeature.enabled) {
-        if (!nextFeature.enabled || !nextFeature.recommended) {
-            const reactPlugin = requireCached<Plugin>("eslint-plugin-react")
+        const reactPlugin = requireCached<ConfigurablePlugin>("eslint-plugin-react")
 
+        if (!nextFeature.enabled || !nextFeature.recommended) {
             configWithExtends.push(
                 ...createScopedExtends(
                     [
@@ -454,38 +522,43 @@ export function defineConfig({ next, react, node, target, directories, ignores, 
             configWithExtends.push(...createScopedExtends([reactHooks.configs.flat.recommended, reactRefresh.default.configs.vite], browserScopes))
         }
 
-        configWithExtends.push(...createScopedExtends(reactFeature.extends, browserScopes))
+        configWithExtends.push(...createScopedExtends(reactFeature.extends, browserScopes, { react: reactPlugin }))
     }
 
     if (nextFeature.enabled) {
+        const nextPluginModule = requireCached<PluginModule>("@next/eslint-plugin-next")
+        const nextPlugin = nextPluginModule.default ?? nextPluginModule
+
         if (nextFeature.recommended) {
             const nextVitals = requireCached<typeof import("eslint-config-next/core-web-vitals")>("eslint-config-next/core-web-vitals")
             const nextTs = requireCached<typeof import("eslint-config-next/typescript")>("eslint-config-next/typescript")
             configWithExtends.push(...createScopedExtends([...nextVitals, ...nextTs], browserScopes))
-        }
+        } else configWithExtends.push(...createScopedExtends([{ plugins: { "@next/next": nextPlugin } }], browserScopes))
 
-        configWithExtends.push(...createScopedExtends(nextFeature.extends, browserScopes))
+        configWithExtends.push(...createScopedExtends(nextFeature.extends, browserScopes, { "@next/next": nextPlugin }))
     }
 
     if (nodeFeature.enabled) {
+        const nodePlugin = requireCached<NodePluginRuntime>("eslint-plugin-n")
+
         if (nodeFeature.recommended) {
-            const nodePlugin = requireCached<NodePluginRuntime>("eslint-plugin-n")
             const preset = nodeFeature.options.preset ?? "script"
             const nodePresetConfig = nodePlugin.configs[nodePresetToConfigKey[preset]]
+            if (!nodePresetConfig) throw new Error(`Unknown Node preset "${preset}". Expected one of: ${Object.keys(nodePresetToConfigKey).join(", ")}.`)
             configWithExtends.push(...createScopedExtends(normalizeUnknownExtends(nodePresetConfig), nodeScopes))
-        }
+        } else configWithExtends.push(...createScopedExtends([{ plugins: { n: nodePlugin } }], nodeScopes))
 
-        configWithExtends.push(...createScopedExtends(nodeFeature.extends, nodeScopes))
+        configWithExtends.push(...createScopedExtends(nodeFeature.extends, nodeScopes, { n: nodePlugin }))
     }
+
+    const globalRules = rules ?? {}
+    const nextRules = nextFeature.enabled ? nextFeature.rules : {}
+    const reactRules = reactFeature.enabled ? reactFeature.rules : {}
+    const nodeFeatureRules = nodeFeature.enabled ? nodeFeature.rules : {}
 
     const mergedBaseRules: RulesConfig = {
         ...defaultRules,
-        ...(rules ?? {}),
-    }
-
-    const typeAwareRules: RulesConfig = {
-        ...defaultTypeAwareRules,
-        ...("@typescript-eslint/no-deprecated" in (rules ?? {}) ? { "@typescript-eslint/no-deprecated": rules?.["@typescript-eslint/no-deprecated"] } : {}),
+        ...withoutTypeAwareRules(globalRules),
     }
 
     const browserRules: RulesConfig = {
@@ -497,20 +570,20 @@ export function defineConfig({ next, react, node, target, directories, ignores, 
                   "react-hooks/set-state-in-effect": "off",
               }
             : {}),
-        ...nextFeature.rules,
-        ...reactFeature.rules,
+        ...withoutTypeAwareRules(nextRules),
+        ...withoutTypeAwareRules(reactRules),
     }
 
     const nodeRules: RulesConfig = {
         ...mergedBaseRules,
         ...(nodeFeature.enabled ? defaultNodeRules : {}),
-        ...(nodeFeature.enabled ? nodeFeature.rules : {}),
+        ...withoutTypeAwareRules(nodeFeatureRules),
     }
 
     const mixedRules: RulesConfig = {
         ...browserRules,
         ...(nodeFeature.enabled ? defaultNodeRules : {}),
-        ...(nodeFeature.enabled ? nodeFeature.rules : {}),
+        ...withoutTypeAwareRules(nodeFeatureRules),
     }
 
     const appConfig: ConfigWithExtends[] = []
@@ -520,7 +593,7 @@ export function defineConfig({ next, react, node, target, directories, ignores, 
     if (resolvedDirectories.node.length > 0) {
         appConfig.push({
             ...createRuntimeConfig(resolvedDirectories.node, "node", nodeRules),
-            settings: createNodeVersionSettings(nodeVersion),
+            ...(nodeFeature.enabled ? { settings: createNodeVersionSettings(nodeVersion) } : {}),
         })
     }
 
@@ -533,7 +606,11 @@ export function defineConfig({ next, react, node, target, directories, ignores, 
 
     const config = [globalIgnores(resolvedIgnores), ...configWithExtends, ...appConfig]
 
-    config.push(...createTypeAwareConfig(baseScopes, typeAwareRules))
+    config.push(
+        ...createTypeAwareConfig([{ files: resolvedDirectories.web, ignores: webIgnores }], resolveTypeAwareRules(globalRules, nextRules, reactRules)),
+        ...createTypeAwareConfig([{ files: resolvedDirectories.node }], resolveTypeAwareRules(globalRules, nodeFeatureRules)),
+        ...createTypeAwareConfig([{ files: resolvedDirectories.mixed }], resolveTypeAwareRules(globalRules, nextRules, reactRules, nodeFeatureRules)),
+    )
 
     return _defineConfig(config)
 }

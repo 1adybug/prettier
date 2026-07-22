@@ -18,9 +18,12 @@
     "scripts": {
         "build": "rslib build",
         "dev": "rslib build --watch",
-        "prepublishOnly": "npm run build",
+        "test": "rslib build && tsc -p test/types/tsconfig.json && nub --test test/index.test.mjs",
+        "test:types": "rslib build && tsc -p test/types/tsconfig.json",
+        "test:coverage": "rslib build && tsc -p test/types/tsconfig.json && nub --test --experimental-test-coverage --test-coverage-include=dist/index.js --test-coverage-lines=95 --test-coverage-branches=90 --test-coverage-functions=95 test/index.test.mjs",
+        "prepublishOnly": "rslib build",
         "format": "prettier --write .",
-        "fg": "npm run format && git add . && git commit -m \"✨feature: format\"",
+        "fg": "prettier --write . && git add . && git commit -m \"✨feature: format\"",
         "prepare": "husky"
     },
     "publishConfig": {
@@ -37,6 +40,7 @@
     },
     "dependencies": {
         "@eslint/js": "^9.39.4",
+        "@next/eslint-plugin-next": "^16.2.10",
         "eslint-config-next": "^16.2.10",
         "eslint-plugin-n": "^18.2.1",
         "eslint-plugin-react": "^7.37.5",
@@ -53,7 +57,9 @@
         "@types/node": "^24.12.0",
         "husky": "^9.1.7",
         "lint-staged": "^17.0.8",
+        "next": "^16.2.10",
         "prettier": "^3.9.4",
+        "react": "^19.0.0",
         "typescript": "^6.0.3"
     },
     "peerDependencies": {
