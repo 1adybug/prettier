@@ -143,7 +143,9 @@ test("keeps the documented default rule contract and Node settings", () => {
     assert.deepEqual(baseRuntime?.rules["@typescript-eslint/no-unused-vars"], ["warn", { args: "none", caughtErrors: "none", ignoreRestSiblings: true }])
     assert.deepEqual(baseRuntime?.rules["prefer-const"], ["warn", { destructuring: "any" }])
     assert.equal(baseRuntime?.rules["prefer-template"], "warn")
-    assert.deepEqual(baseRuntime?.rules["@typescript-eslint/max-params"], ["warn", { max: 2 }])
+    assert.equal(baseRuntime?.rules["@typescript-eslint/max-params"], "off")
+    assert.deepEqual(baseRuntime?.rules["@1adybug/max-params"], ["warn", { max: 2, ignoreCallbacks: true }])
+    assert.equal(typeof baseRuntime?.plugins?.["@1adybug"]?.rules?.["max-params"]?.create, "function")
     assert.equal(baseRuntime?.settings, undefined)
     assert.equal(hasOwn(baseRuntime?.rules, "n/no-missing-import"), false)
 
@@ -158,6 +160,77 @@ test("keeps the documented default rule contract and Node settings", () => {
     assert.deepEqual(reactRuntime?.rules["react/self-closing-comp"], ["warn", { component: true, html: true }])
     assert.equal(reactRuntime?.rules["react-refresh/only-export-components"], "off")
     assert.equal(reactRuntime?.rules["react-hooks/set-state-in-effect"], "off")
+})
+
+test("limits owned function signatures without warning on callback signatures", async () => {
+    const config = defineConfig({ next: false, react: false, node: false, target: "node" })
+    const source = [
+        "function declared(first, second, third) {}",
+        "const assigned = (first, second, third) => first + second + third",
+        "consume((first, second, third) => first + second + third)",
+        "new Consumer((first, second, third) => first + second + third)",
+        "consume({ handler(first, second, third) { return first + second + third } })",
+        "consume(() => { const nested = (first, second, third) => first + second + third; return nested })",
+        "console.log(declared, assigned)",
+    ].join("\n")
+    const result = await lint(config, source, "example.js")
+    const messages = result.messages.filter(message => message.ruleId === "@1adybug/max-params")
+
+    assert.equal(result.fatalErrorCount, 0, JSON.stringify(result.messages))
+    assert.equal(messages.length, 3, JSON.stringify(result.messages))
+
+    assert.deepEqual(
+        messages.map(message => message.line),
+        [1, 2, 6],
+    )
+})
+
+test("allows JSX callbacks and TypeScript callback signatures", async () => {
+    const reactConfig = defineConfig({ next: false, react: true, node: false, target: "browser" })
+    const reactResult = await lint(
+        reactConfig,
+        "export const view = <Widget render={(first, second, third) => first + second + third}>{(first, second, third) => first + second + third}</Widget>",
+        "view.jsx",
+    )
+
+    const typescriptConfig = defineConfig({ next: false, react: false, node: false, target: "node" })
+    const typescriptResult = await lint(
+        typescriptConfig,
+        "type Callback = (first: string, second: string, third: string) => void\ndeclare function external(first: string, second: string, third: string): void",
+        "test/fixtures/type-aware.ts",
+    )
+
+    assert.equal(reactResult.fatalErrorCount, 0, JSON.stringify(reactResult.messages))
+    assert.equal(typescriptResult.fatalErrorCount, 0, JSON.stringify(typescriptResult.messages))
+
+    assert.equal(
+        reactResult.messages.some(message => message.ruleId === "@1adybug/max-params"),
+        false,
+    )
+
+    assert.equal(
+        typescriptResult.messages.some(message => message.ruleId === "@1adybug/max-params"),
+        false,
+    )
+})
+
+test("allows callback-aware max params behavior to be configured", async () => {
+    const config = defineConfig({
+        next: false,
+        react: false,
+        node: false,
+        target: "node",
+        rules: { "@1adybug/max-params": ["error", { max: 3, ignoreCallbacks: false }] },
+    })
+
+    const source = ["function declared(a, b, c) {}", "consume((a, b, c, d) => a + b + c + d)", "console.log(declared)"].join("\n")
+    const result = await lint(config, source, "example.js")
+    const messages = result.messages.filter(message => message.ruleId === "@1adybug/max-params")
+
+    assert.equal(result.fatalErrorCount, 0, JSON.stringify(result.messages))
+    assert.equal(messages.length, 1, JSON.stringify(result.messages))
+    assert.equal(messages[0].line, 2)
+    assert.equal(messages[0].severity, 2)
 })
 
 test("merges and deduplicates ignores while adding Next ignores", () => {

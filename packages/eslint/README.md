@@ -80,9 +80,20 @@ export default defineConfig({
    TypeScript 文件默认开启 `@typescript-eslint/no-deprecated`，并自动启用 `projectService`；JavaScript 与声明文件不会应用这条规则。
 10. 内联对象类型提示  
     默认对 `const info: { name: string } = { name: "tom" }`、`function getName({ name }: { name: string }) {}` 这类内联对象类型给出警告，建议先提取为 `type` 或 `interface`。
-11. 通用代码风格提示：默认以 warning 提示可保持不变的变量使用 `const`、字符串拼接使用模板字符串、无 `this` 依赖的回调使用箭头函数、省略可安全省略的箭头函数体大括号，并将函数参数数量控制在最多 2 个。
+11. 通用代码风格提示：默认以 warning 提示可保持不变的变量使用 `const`、字符串拼接使用模板字符串、无 `this` 依赖的回调使用箭头函数、省略可安全省略的箭头函数体大括号，并将自主定义的函数参数数量控制在最多 2 个。直接传给函数、构造器或 JSX 的回调不会触发参数数量警告，因为这类签名通常由外部 API 决定。
 12. TypeScript 类型声明提示：对象类型声明建议使用 `interface`，类型名称使用 PascalCase；`enum` 会给出警告，建议改为 `as const` 对象和推导类型。
 13. React JSX 风格提示：React 项目默认以 warning 提示 Fragment 使用 `<Fragment>` 或 `<React.Fragment>` 的完整形式，并将无子节点的 JSX 元素写成自闭合标签；组件可以根据需要使用函数声明或箭头函数。
+
+参数数量由内置的 `@1adybug/max-params` 规则检查。需要修改上限、重新检查内联回调或完全关闭时，可以通过全局 `rules` 覆盖：
+
+```js
+export default defineConfig({
+    rules: {
+        "@1adybug/max-params": ["warn", { max: 3, ignoreCallbacks: false }],
+        // "@1adybug/max-params": "off",
+    },
+})
+```
 
 ## 示例
 
