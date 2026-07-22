@@ -1,5 +1,11 @@
 # @1adybug/eslint
 
+## 0.0.15
+
+### Patch Changes
+
+- 移除默认最大参数数量限制及内置的 `@1adybug/max-params` 规则。
+
 ## 0.0.14
 
 ### Patch Changes

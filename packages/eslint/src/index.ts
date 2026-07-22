@@ -7,8 +7,6 @@ import { defineConfig as _defineConfig, globalIgnores } from "eslint/config"
 import globals from "globals"
 import tseslint from "typescript-eslint"
 
-import { toolingPlugin } from "./rules/max-params"
-
 const require = createRequire(import.meta.url)
 
 const allFiles = ["**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}"]
@@ -64,9 +62,6 @@ const defaultRules: RulesConfig = {
     "prefer-template": "warn",
     "prefer-arrow-callback": "warn",
     "arrow-body-style": ["warn", "as-needed"],
-    "max-params": "off",
-    "@typescript-eslint/max-params": "off",
-    "@1adybug/max-params": ["warn", { max: 2, ignoreCallbacks: true }],
     "@typescript-eslint/consistent-type-definitions": ["warn", "interface"],
     "@typescript-eslint/naming-convention": [
         "warn",
@@ -426,9 +421,6 @@ function createRuntimeConfig(files: string[], runtimeTarget: RuntimeTarget, rule
         languageOptions: {
             ecmaVersion: "latest",
             globals: runtimeGlobals[runtimeTarget],
-        },
-        plugins: {
-            "@1adybug": toolingPlugin,
         },
         rules,
     }

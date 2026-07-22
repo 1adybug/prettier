@@ -7,9 +7,6 @@ const config = defineConfig({
     next: false,
     react: false,
     ignores: ["**/dist/**", "packages/eslint/test/fixtures/**", "packages/prettier-plugin-remove-braces/example.js"],
-    rules: {
-        "@typescript-eslint/max-params": "off",
-    },
 })
 
 export default config.map(item => {
