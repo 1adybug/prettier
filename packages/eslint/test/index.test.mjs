@@ -41,6 +41,13 @@ async function lint(config, code, filePath) {
     return result
 }
 
+function createESLint(config) {
+    return new ESLint({
+        overrideConfigFile: true,
+        overrideConfig: config,
+    })
+}
+
 function assertRuleMessage(result, ruleId, severity) {
     assert.ok(
         result.messages.some(message => message.ruleId === ruleId && message.severity === severity),
@@ -97,6 +104,20 @@ test("infers the default runtime target from enabled features", async t => {
         assert.equal(runtimeConfig?.settings, undefined)
     })
 
+    await t.test("Expo defaults to a browser scope without requiring src", () => {
+        const configs = defineConfig({
+            next: false,
+            react: false,
+            expo: { enabled: true, recommended: false },
+            node: false,
+        })
+
+        const runtimeConfig = findRuntimeConfig(configs, allFiles)
+
+        assert.equal(runtimeConfig?.languageOptions.globals.window, false)
+        assert.equal(hasOwn(runtimeConfig?.languageOptions.globals, "process"), false)
+    })
+
     await t.test("a non-frontend project defaults to a Node scope", () => {
         const configs = defineConfig({ next: false, react: false })
         const runtimeConfig = findRuntimeConfig(configs, allFiles)
@@ -130,6 +151,71 @@ test("infers the default runtime target from enabled features", async t => {
             true,
         )
     })
+})
+
+test("integrates Expo Flat Config for flat React Native projects without redefining plugins", async () => {
+    const config = defineConfig({
+        next: false,
+        expo: true,
+        node: false,
+    })
+
+    const eslint = createESLint(config)
+    const flatAppResult = await lint(config, "const { EXPO_PUBLIC_API_URL } = process.env\nexport default EXPO_PUBLIC_API_URL\n", "app/index.jsx")
+    const metroResult = await lint(
+        config,
+        "const { getDefaultConfig } = require('expo/metro-config')\nmodule.exports = getDefaultConfig(__dirname)\n",
+        "metro.config.js",
+    )
+    const appConfigResult = await lint(config, "export default { name: 'flat-expo-app' }\n", "app.config.ts")
+    const nativeConfig = await eslint.calculateConfigForFile("Button.native.jsx")
+    const platformExtensions = nativeConfig.settings?.["import/extensions"]
+
+    assert.equal(flatAppResult.fatalErrorCount, 0, JSON.stringify(flatAppResult.messages))
+    assertRuleMessage(flatAppResult, "expo/no-env-var-destructuring", 2)
+    assert.equal(metroResult.fatalErrorCount, 0, JSON.stringify(metroResult.messages))
+
+    assert.equal(
+        metroResult.messages.some(message => message.ruleId === "no-undef" && message.message.includes("module")),
+        false,
+    )
+
+    assert.equal(
+        metroResult.messages.some(message => message.ruleId === "@typescript-eslint/no-require-imports"),
+        false,
+    )
+
+    assert.equal(appConfigResult.fatalErrorCount, 0, JSON.stringify(appConfigResult.messages))
+
+    assert.equal(platformExtensions.includes(".native.tsx"), true)
+
+    assert.equal(
+        config.some(item => item.plugins?.["react-refresh"]),
+        false,
+    )
+
+    assert.equal(await eslint.isPathIgnored(".expo/types/router.d.ts"), true)
+    assert.equal(await eslint.isPathIgnored("android/app/build/output.js"), true)
+    assert.equal(await eslint.isPathIgnored("modules/native/android/build/output.js"), true)
+    assert.equal(await eslint.isPathIgnored("app/index.jsx"), false)
+})
+
+test("registers the Expo plugin for custom rules when recommendations are disabled", async () => {
+    const config = defineConfig({
+        next: false,
+        react: false,
+        expo: {
+            enabled: true,
+            recommended: false,
+            rules: { "expo/no-dynamic-env-var": "error" },
+        },
+        node: false,
+    })
+
+    const result = await lint(config, "const key = 'EXPO_PUBLIC_API_URL'\nconst value = process.env[key]\nconsole.log(value)\n", "env.js")
+
+    assert.equal(result.fatalErrorCount, 0, JSON.stringify(result.messages))
+    assertRuleMessage(result, "expo/no-dynamic-env-var", 2)
 })
 
 test("keeps the documented default rule contract and Node settings", () => {

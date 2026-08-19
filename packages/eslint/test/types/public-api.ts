@@ -1,5 +1,6 @@
 import defaultConfig, {
     type DefineConfigParams,
+    type ExpoFeatureOptions,
     type NextFeatureOptions,
     type NodeFeatureOptions,
     type NodePreset,
@@ -20,11 +21,14 @@ const next: NextFeatureOptions = { enabled: true, recommended: false }
 
 const react: ReactFeatureOptions = { enabled: true, recommended: false }
 
+const expo: ExpoFeatureOptions = { enabled: true, recommended: false }
+
 const node: NodeFeatureOptions = { enabled: true, preset, version: ">=24.0.0" }
 
 const params: DefineConfigParams = {
     next,
     react,
+    expo,
     node,
     target: "both",
     directories,

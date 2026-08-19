@@ -54,12 +54,19 @@
         "@eslint/core": "^1.1.1",
         "@rslib/core": "^0.23.2",
         "@types/node": "catalog:",
+        "eslint-config-expo": "^57.0.1",
         "next": "^16.2.10",
         "prettier": "catalog:",
         "react": "^19.0.0",
         "typescript": "^6.0.3"
     },
     "peerDependencies": {
-        "eslint": "^9.39.4"
+        "eslint": "^9.39.4",
+        "eslint-config-expo": ">=53.0.0"
+    },
+    "peerDependenciesMeta": {
+        "eslint-config-expo": {
+            "optional": true
+        }
     }
 }

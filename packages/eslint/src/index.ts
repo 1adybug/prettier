@@ -1,4 +1,5 @@
 import { createRequire } from "node:module"
+import { resolve } from "node:path"
 
 import type { ConfigWithExtends, ExtendsElement } from "@eslint/config-helpers"
 import type { Plugin, RulesConfig } from "@eslint/core"
@@ -8,6 +9,7 @@ import globals from "globals"
 import tseslint from "typescript-eslint"
 
 const require = createRequire(import.meta.url)
+const requireFromProject = createRequire(resolve(process.cwd(), "package.json"))
 
 const allFiles = ["**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}"]
 
@@ -18,6 +20,20 @@ const nextDefaultNodeFiles = [
 ]
 
 const defaultIgnores = ["node_modules/**", "out/**", "build/**", "dist/**", "public/**"]
+
+const expoDefaultIgnores = [".expo/**", "android/**", "ios/**", "**/android/build/**", "**/ios/build/**"]
+
+const expoCommonJsConfigFiles = ["**/{app,babel,metro,react-native}.config.{js,cjs,mjs,ts,cts,mts}"]
+
+const expoDefaultProjectFiles = [
+    "app.config.ts",
+    "babel.config.ts",
+    "metro.config.ts",
+    "nativewind.config.ts",
+    "react-native.config.ts",
+    "tailwind.config.ts",
+    "uniwind.config.ts",
+]
 
 const typeAwareIgnores = ["**/*.{js,jsx,mjs,cjs}", "**/*.d.{ts,tsx,mts,cts}"]
 
@@ -136,7 +152,7 @@ function hasDependency(dependency: string) {
     if (dependencyCache.has(dependency)) return dependencyCache.get(dependency) ?? false
 
     try {
-        require.resolve(dependency)
+        requireFromProject.resolve(dependency)
         dependencyCache.set(dependency, true)
         return true
     } catch (error) {
@@ -145,10 +161,19 @@ function hasDependency(dependency: string) {
     }
 }
 
+function resolveModuleId(moduleId: string) {
+    try {
+        return requireFromProject.resolve(moduleId)
+    } catch (error) {
+        return require.resolve(moduleId)
+    }
+}
+
 function requireCached<T>(moduleId: string) {
-    if (moduleCache.has(moduleId)) return moduleCache.get(moduleId) as T
-    const loadedModule = require(moduleId) as T
-    moduleCache.set(moduleId, loadedModule)
+    const resolvedModuleId = resolveModuleId(moduleId)
+    if (moduleCache.has(resolvedModuleId)) return moduleCache.get(resolvedModuleId) as T
+    const loadedModule = require(resolvedModuleId) as T
+    moduleCache.set(resolvedModuleId, loadedModule)
     return loadedModule
 }
 
@@ -162,6 +187,8 @@ interface BaseFeatureOptions {
 export interface NextFeatureOptions extends BaseFeatureOptions {}
 
 export interface ReactFeatureOptions extends BaseFeatureOptions {}
+
+export interface ExpoFeatureOptions extends BaseFeatureOptions {}
 
 export interface NodeFeatureOptions extends BaseFeatureOptions {
     preset?: NodePreset
@@ -177,6 +204,7 @@ export interface RuntimeDirectories {
 export interface DefineConfigParams {
     next?: FeatureInput<NextFeatureOptions>
     react?: FeatureInput<ReactFeatureOptions>
+    expo?: FeatureInput<ExpoFeatureOptions>
     node?: FeatureInput<NodeFeatureOptions>
     /**
      * Used to infer default runtime directories when `directories` is not provided.
@@ -207,6 +235,10 @@ interface ResolvedFeature<T extends BaseFeatureOptions = BaseFeatureOptions> {
     extends: FeatureExtend[]
     rules: RulesConfig
     options: T
+}
+
+interface ProjectServiceOptions {
+    allowDefaultProject: string[]
 }
 
 function toArray<T>(value: MaybeArray<T> | undefined): T[] {
@@ -245,9 +277,9 @@ function resolveFeature<T extends BaseFeatureOptions>(feature: FeatureInput<T> |
     }
 }
 
-function getDefaultTarget(nextEnabled: boolean, reactEnabled: boolean): RuntimeTarget {
+function getDefaultTarget(nextEnabled: boolean, reactEnabled: boolean, expoEnabled: boolean): RuntimeTarget {
     if (nextEnabled) return "both"
-    if (reactEnabled) return "browser"
+    if (reactEnabled || expoEnabled) return "browser"
     return "node"
 }
 
@@ -408,6 +440,38 @@ function normalizeUnknownExtends(config: unknown): FeatureExtend[] {
     return []
 }
 
+function replaceKnownPluginInstances(config: unknown, knownPlugins: Record<string, ConfigurablePlugin>): FeatureExtend[] {
+    if (typeof config === "string") return [config]
+    if (Array.isArray(config)) return config.flatMap(item => replaceKnownPluginInstances(item, knownPlugins))
+    if (!config || typeof config !== "object") return []
+
+    const sourceConfig = config as ConfigWithExtends
+    const { extends: sourceExtends, plugins: sourcePlugins, ...flatConfig } = sourceConfig
+
+    if (sourceExtends?.length) throw new Error('The loaded Expo Flat Config must not contain nested "extends" entries.')
+
+    const plugins = sourcePlugins
+        ? Object.fromEntries(Object.entries(sourcePlugins).map(([pluginName, plugin]) => [pluginName, knownPlugins[pluginName] ?? plugin]))
+        : undefined
+
+    return [
+        {
+            ...flatConfig,
+            ...(plugins ? { plugins } : {}),
+        },
+    ]
+}
+
+function findPlugin(configs: FeatureExtend[], pluginName: string) {
+    for (const config of configs) {
+        if (typeof config === "string" || Array.isArray(config)) continue
+        const plugin = config.plugins?.[pluginName]
+        if (plugin) return plugin as ConfigurablePlugin
+    }
+
+    return undefined
+}
+
 function createRuntimeConfig(files: string[], runtimeTarget: RuntimeTarget, rules: RulesConfig, ignores?: string[]) {
     const runtimeGlobals = {
         browser: globals.browser,
@@ -433,7 +497,7 @@ function createNodeVersionSettings(version: string) {
     }
 }
 
-function createTypeAwareConfig(scopes: FeatureScope[], rules: RulesConfig) {
+function createTypeAwareConfig(scopes: FeatureScope[], rules: RulesConfig, projectService: true | ProjectServiceOptions = true) {
     if (Object.keys(rules).length === 0) return []
 
     return normalizeScopes(scopes).map<ConfigWithExtends>(scope => ({
@@ -444,7 +508,7 @@ function createTypeAwareConfig(scopes: FeatureScope[], rules: RulesConfig) {
         },
         languageOptions: {
             parserOptions: {
-                projectService: true,
+                projectService,
             },
         },
         rules,
@@ -467,12 +531,13 @@ function resolveTypeAwareRules(...ruleSets: RulesConfig[]) {
     return resolvedRules
 }
 
-export function defineConfig({ next, react, node, target, directories, ignores, rules }: DefineConfigParams = {}) {
+export function defineConfig({ next, react, expo, node, target, directories, ignores, rules }: DefineConfigParams = {}) {
     assertValidTarget(target)
 
     const nextFeature = resolveFeature(next, hasDependency("next"))
-    const reactFeature = resolveFeature(react, hasDependency("react") || nextFeature.enabled)
-    const resolvedTarget = target ?? getDefaultTarget(nextFeature.enabled, reactFeature.enabled)
+    const expoFeature = resolveFeature(expo, hasDependency("expo"))
+    const reactFeature = resolveFeature(react, hasDependency("react") || nextFeature.enabled || expoFeature.enabled)
+    const resolvedTarget = target ?? getDefaultTarget(nextFeature.enabled, reactFeature.enabled, expoFeature.enabled)
     const nodeFeature = resolveFeature(node, resolvedTarget !== "browser")
     const nodeVersion = nodeFeature.options.version ?? defaultNodeVersion
 
@@ -493,12 +558,20 @@ export function defineConfig({ next, react, node, target, directories, ignores, 
         { files: resolvedDirectories.mixed },
     ]
 
-    const resolvedIgnores = unique([...defaultIgnores, ...toGlobs(ignores), ...(nextFeature.enabled ? [".next/**", "next-env.d.ts"] : [])])
+    const resolvedIgnores = unique([
+        ...defaultIgnores,
+        ...toGlobs(ignores),
+        ...(nextFeature.enabled ? [".next/**", "next-env.d.ts"] : []),
+        ...(expoFeature.enabled ? expoDefaultIgnores : []),
+    ])
 
     const configWithExtends: ConfigWithExtends[] = createScopedExtends([js.configs.recommended, ...tseslint.configs.recommended], baseScopes)
 
+    let reactPlugin: ConfigurablePlugin | undefined
+    let reactHooksPlugin: ConfigurablePlugin | undefined
+
     if (reactFeature.enabled) {
-        const reactPlugin = requireCached<ConfigurablePlugin>("eslint-plugin-react")
+        reactPlugin = requireCached<ConfigurablePlugin>("eslint-plugin-react")
 
         if (!nextFeature.enabled || !nextFeature.recommended) {
             configWithExtends.push(
@@ -514,13 +587,49 @@ export function defineConfig({ next, react, node, target, directories, ignores, 
             )
         }
 
-        if (reactFeature.recommended) {
+        if (reactFeature.recommended || (expoFeature.enabled && expoFeature.recommended)) {
             const reactHooks = requireCached<typeof import("eslint-plugin-react-hooks")>("eslint-plugin-react-hooks")
-            const reactRefresh = requireCached<typeof import("eslint-plugin-react-refresh")>("eslint-plugin-react-refresh")
-            configWithExtends.push(...createScopedExtends([reactHooks.configs.flat.recommended, reactRefresh.default.configs.vite], browserScopes))
+            reactHooksPlugin = reactHooks as unknown as ConfigurablePlugin
+
+            if (!(expoFeature.enabled && expoFeature.recommended)) {
+                const reactRefresh = requireCached<typeof import("eslint-plugin-react-refresh")>("eslint-plugin-react-refresh")
+                configWithExtends.push(...createScopedExtends([reactHooks.configs.flat.recommended, reactRefresh.default.configs.vite], browserScopes))
+            }
         }
 
         configWithExtends.push(...createScopedExtends(reactFeature.extends, browserScopes, { react: reactPlugin }))
+    }
+
+    if (expoFeature.enabled) {
+        if (!hasDependency("eslint-config-expo")) throw new Error('Expo support requires "eslint-config-expo" to be installed in the project.')
+
+        const knownPlugins: Record<string, ConfigurablePlugin> = {
+            "@typescript-eslint": tseslint.plugin as ConfigurablePlugin,
+            ...(reactPlugin ? { react: reactPlugin } : {}),
+            ...(reactHooksPlugin ? { "react-hooks": reactHooksPlugin } : {}),
+        }
+
+        const expoConfigs = replaceKnownPluginInstances(requireCached<unknown>("eslint-config-expo/flat.js"), knownPlugins)
+        const expoPlugin = findPlugin(expoConfigs, "expo")
+
+        if (!expoPlugin) throw new Error('The installed "eslint-config-expo" does not expose the expected "expo" Flat Config plugin.')
+
+        if (expoFeature.recommended) configWithExtends.push(...createScopedExtends(expoConfigs, browserScopes))
+        else configWithExtends.push(...createScopedExtends([{ plugins: { expo: expoPlugin } }], browserScopes))
+
+        configWithExtends.push(
+            ...createScopedExtends(
+                [
+                    {
+                        files: expoCommonJsConfigFiles,
+                        rules: { "@typescript-eslint/no-require-imports": "off" },
+                    },
+                ],
+                browserScopes,
+            ),
+        )
+
+        configWithExtends.push(...createScopedExtends(expoFeature.extends, browserScopes, { expo: expoPlugin }))
     }
 
     if (nextFeature.enabled) {
@@ -552,6 +661,7 @@ export function defineConfig({ next, react, node, target, directories, ignores, 
     const globalRules = rules ?? {}
     const nextRules = nextFeature.enabled ? nextFeature.rules : {}
     const reactRules = reactFeature.enabled ? reactFeature.rules : {}
+    const expoRules = expoFeature.enabled ? expoFeature.rules : {}
     const nodeFeatureRules = nodeFeature.enabled ? nodeFeature.rules : {}
 
     const mergedBaseRules: RulesConfig = {
@@ -564,12 +674,15 @@ export function defineConfig({ next, react, node, target, directories, ignores, 
         ...(reactFeature.enabled ? defaultReactRules : {}),
         ...(reactFeature.enabled && reactFeature.recommended
             ? {
-                  "react-refresh/only-export-components": "off",
                   "react-hooks/set-state-in-effect": "off",
               }
             : {}),
+        ...(reactFeature.enabled && reactFeature.recommended && !(expoFeature.enabled && expoFeature.recommended)
+            ? { "react-refresh/only-export-components": "off" }
+            : {}),
         ...withoutTypeAwareRules(nextRules),
         ...withoutTypeAwareRules(reactRules),
+        ...withoutTypeAwareRules(expoRules),
     }
 
     const nodeRules: RulesConfig = {
@@ -604,10 +717,20 @@ export function defineConfig({ next, react, node, target, directories, ignores, 
 
     const config = [globalIgnores(resolvedIgnores), ...configWithExtends, ...appConfig]
 
+    const expoProjectService = expoFeature.enabled ? { allowDefaultProject: expoDefaultProjectFiles } : true
+
     config.push(
-        ...createTypeAwareConfig([{ files: resolvedDirectories.web, ignores: webIgnores }], resolveTypeAwareRules(globalRules, nextRules, reactRules)),
+        ...createTypeAwareConfig(
+            [{ files: resolvedDirectories.web, ignores: webIgnores }],
+            resolveTypeAwareRules(globalRules, nextRules, reactRules, expoRules),
+            expoProjectService,
+        ),
         ...createTypeAwareConfig([{ files: resolvedDirectories.node }], resolveTypeAwareRules(globalRules, nodeFeatureRules)),
-        ...createTypeAwareConfig([{ files: resolvedDirectories.mixed }], resolveTypeAwareRules(globalRules, nextRules, reactRules, nodeFeatureRules)),
+        ...createTypeAwareConfig(
+            [{ files: resolvedDirectories.mixed }],
+            resolveTypeAwareRules(globalRules, nextRules, reactRules, expoRules, nodeFeatureRules),
+            expoProjectService,
+        ),
     )
 
     return _defineConfig(config)

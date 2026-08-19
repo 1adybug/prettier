@@ -1,6 +1,6 @@
 # @1adybug/eslint
 
-推荐的 ESLint Flat Config，内置 TypeScript、React、Next.js、Node.js 常见规则，并支持按目录拆分运行时环境。
+推荐的 ESLint Flat Config，内置 TypeScript、React、Expo/React Native、Next.js、Node.js 常见规则，并支持按目录拆分运行时环境。
 
 ## 安装
 
@@ -18,6 +18,12 @@ import config from "@1adybug/eslint"
 export default config
 ```
 
+也可以直接重新导出默认配置：
+
+```js
+export { default } from "@1adybug/eslint"
+```
+
 ## 自定义配置
 
 `eslint.config.mjs`
@@ -26,6 +32,7 @@ export default config
 import { defineConfig } from "@1adybug/eslint"
 
 export default defineConfig({
+    expo: false,
     next: true,
     react: true,
     node: {
@@ -42,6 +49,7 @@ export default defineConfig({
 
 - `next`: `boolean | FeatureOptions`
 - `react`: `boolean | FeatureOptions`
+- `expo`: `boolean | FeatureOptions`
 - `node`: `boolean | FeatureOptions & { preset?: "script" | "module" | "recommended" | "mixed"; version?: string }`
 - `target`: `"browser" | "node" | "both"`
 - `directories`: `{ web?: string | string[]; node?: string | string[]; mixed?: string | string[] }`
@@ -58,9 +66,9 @@ export default defineConfig({
 ## 默认行为（开箱即用）
 
 1. 自动探测依赖  
-   检测到 `next` 时默认启用 Next；检测到 `react`（或启用 Next）时默认启用 React。
+   检测到 `next` 时默认启用 Next；检测到 `expo` 时默认启用 Expo；检测到 `react`（或启用 Next/Expo）时默认启用 React。
 2. `target` 默认推断  
-   Next 项目默认 `"both"`；React 项目默认 `"browser"`；其他默认 `"node"`。
+   Next 项目默认 `"both"`；Expo 或 React 项目默认 `"browser"`；其他默认 `"node"`。
 3. Node 默认启用条件  
    当 `target !== "browser"` 时默认启用 Node 规则。
 4. Node 默认版本  
@@ -74,19 +82,31 @@ export default defineConfig({
    `node_modules/**`, `out/**`, `build/**`, `dist/**`, `public/**`。
 7. Next 额外忽略  
    `.next/**`, `next-env.d.ts`。
-8. 目录冲突保护  
+8. Expo 默认行为
+   自动加载项目安装的 `eslint-config-expo`，保留 Expo 环境规则、Metro 配置和 `.android/.ios/.native/.web` 平台文件解析；允许 Expo 配置文件使用 CommonJS，并为未进入 tsconfig 的常见根级 TypeScript 配置文件提供 project-service 默认项目；同时忽略 `.expo/**`、顶层原生生成目录和嵌套原生构建输出。默认源码范围使用 `**/*`，不依赖 `src` 目录，支持根级 `app/**`、`modules/**` 和平铺源码。
+9. 目录冲突保护
    同一个 glob 同时出现在 `web/node/mixed` 会直接报错。
-9. TypeScript 默认弃用检查  
-   TypeScript 文件默认开启 `@typescript-eslint/no-deprecated`，并自动启用 `projectService`；JavaScript 与声明文件不会应用这条规则。
-10. 内联对象类型提示  
+10. TypeScript 默认弃用检查
+    TypeScript 文件默认开启 `@typescript-eslint/no-deprecated`，并自动启用 `projectService`；JavaScript 与声明文件不会应用这条规则。
+11. 内联对象类型提示
     默认对 `const info: { name: string } = { name: "tom" }`、`function getName({ name }: { name: string }) {}` 这类内联对象类型给出警告，建议先提取为 `type` 或 `interface`。
-11. 通用代码风格提示：默认以 warning 提示可保持不变的变量使用 `const`、字符串拼接使用模板字符串、无 `this` 依赖的回调使用箭头函数，并省略可安全省略的箭头函数体大括号。
-12. TypeScript 类型声明提示：对象类型声明建议使用 `interface`，类型名称使用 PascalCase；`enum` 会给出警告，建议改为 `as const` 对象和推导类型。
-13. React JSX 风格提示：React 项目默认以 warning 提示 Fragment 使用 `<Fragment>` 或 `<React.Fragment>` 的完整形式，并将无子节点的 JSX 元素写成自闭合标签；组件可以根据需要使用函数声明或箭头函数。
+12. 通用代码风格提示：默认以 warning 提示可保持不变的变量使用 `const`、字符串拼接使用模板字符串、无 `this` 依赖的回调使用箭头函数，并省略可安全省略的箭头函数体大括号。
+13. TypeScript 类型声明提示：对象类型声明建议使用 `interface`，类型名称使用 PascalCase；`enum` 会给出警告，建议改为 `as const` 对象和推导类型。
+14. React JSX 风格提示：React 项目默认以 warning 提示 Fragment 使用 `<Fragment>` 或 `<React.Fragment>` 的完整形式，并将无子节点的 JSX 元素写成自闭合标签；组件可以根据需要使用函数声明或箭头函数。
 
 ## 示例
 
-### 1) Next 全栈项目（目录分区）
+### 1) Expo/React Native 平铺项目
+
+安装与当前 Expo SDK 匹配的 `eslint-config-expo` 后，根目录的 `eslint.config.mjs` 只需：
+
+```js
+export { default } from "@1adybug/eslint"
+```
+
+该配置会覆盖根级 `app/**`、`modules/**` 和其他 JavaScript/TypeScript 文件，无需保留 `src` 目录。
+
+### 2) Next 全栈项目（目录分区）
 
 ```js
 import { defineConfig } from "@1adybug/eslint"
@@ -103,7 +123,7 @@ export default defineConfig({
 })
 ```
 
-### 2) 纯 React 项目（关闭 Node 规则）
+### 3) 纯 React 项目（关闭 Node 规则）
 
 ```js
 import { defineConfig } from "@1adybug/eslint"
@@ -115,7 +135,7 @@ export default defineConfig({
 })
 ```
 
-### 3) 纯 Node 库
+### 4) 纯 Node 库
 
 ```js
 import { defineConfig } from "@1adybug/eslint"
