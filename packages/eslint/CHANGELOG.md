@@ -1,5 +1,11 @@
 # @1adybug/eslint
 
+## 0.0.16
+
+### Patch Changes
+
+- d076b80: 新增 Expo/React Native 自动探测与 Flat Config 支持，统一重复插件实例，并支持无 `src` 的平铺项目直接重新导出默认配置。
+
 ## 0.0.15
 
 ### Patch Changes
