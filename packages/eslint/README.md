@@ -83,7 +83,7 @@ export default defineConfig({
 7. Next 额外忽略  
    `.next/**`, `next-env.d.ts`。
 8. Expo 默认行为
-   自动加载项目安装的 `eslint-config-expo`，保留 Expo 环境规则、Metro 配置和 `.android/.ios/.native/.web` 平台文件解析；允许 Expo 配置文件使用 CommonJS，并为未进入 tsconfig 的常见根级 TypeScript 配置文件提供 project-service 默认项目；同时忽略 `.expo/**`、顶层原生生成目录和嵌套原生构建输出。默认源码范围使用 `**/*`，不依赖 `src` 目录，支持根级 `app/**`、`modules/**` 和平铺源码。
+   自动加载项目安装的 `eslint-config-expo`，保留 Expo 环境规则、Metro 配置和 `.android/.ios/.native/.web` 平台文件解析；启用 `eslint-plugin-react-native` 的全部规则，检查未使用、内联、硬编码颜色、顺序、平台拆分、原始文本和单元素数组等原生样式与渲染问题；允许 Expo 配置文件使用 CommonJS，并为未进入 tsconfig 的常见根级 TypeScript 配置文件提供 project-service 默认项目；同时忽略 `.expo/**`、顶层原生生成目录和嵌套原生构建输出。默认源码范围使用 `**/*`，不依赖 `src` 目录，支持根级 `app/**`、`modules/**` 和平铺源码。
 9. 目录冲突保护
    同一个 glob 同时出现在 `web/node/mixed` 会直接报错。
 10. TypeScript 默认弃用检查
@@ -105,6 +105,20 @@ export { default } from "@1adybug/eslint"
 ```
 
 该配置会覆盖根级 `app/**`、`modules/**` 和其他 JavaScript/TypeScript 文件，无需保留 `src` 目录。
+
+如果项目使用自定义文本组件，通过 Expo 规则配置精确加入白名单，不要跳过会同时承载图标和文本的容器组件：
+
+```js
+import { defineConfig } from "@1adybug/eslint"
+
+export default defineConfig({
+    expo: {
+        rules: {
+            "react-native/no-raw-text": ["error", { skip: ["Button.Label", "Typography.Paragraph"] }],
+        },
+    },
+})
+```
 
 ### 2) Next 全栈项目（目录分区）
 

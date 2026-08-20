@@ -162,6 +162,8 @@ test("integrates Expo Flat Config for flat React Native projects without redefin
 
     const eslint = createESLint(config)
     const flatAppResult = await lint(config, "const { EXPO_PUBLIC_API_URL } = process.env\nexport default EXPO_PUBLIC_API_URL\n", "app/index.jsx")
+    const rawTextResult = await lint(config, "export default function Screen() { return <View>raw text</View> }\n", "app/screen.jsx")
+    const wrappedTextResult = await lint(config, "export default function Screen() { return <View><Text>wrapped text</Text></View> }\n", "app/wrapped.jsx")
     const metroResult = await lint(
         config,
         "const { getDefaultConfig } = require('expo/metro-config')\nmodule.exports = getDefaultConfig(__dirname)\n",
@@ -173,6 +175,33 @@ test("integrates Expo Flat Config for flat React Native projects without redefin
 
     assert.equal(flatAppResult.fatalErrorCount, 0, JSON.stringify(flatAppResult.messages))
     assertRuleMessage(flatAppResult, "expo/no-env-var-destructuring", 2)
+
+    assert.deepEqual(
+        Object.fromEntries(
+            Object.entries(nativeConfig.rules ?? {})
+                .filter(([ruleId]) => ruleId.startsWith("react-native/"))
+                .map(([ruleId, ruleConfig]) => [ruleId, ruleConfig[0]]),
+        ),
+        {
+            "react-native/no-color-literals": 2,
+            "react-native/no-inline-styles": 2,
+            "react-native/no-raw-text": 2,
+            "react-native/no-single-element-style-arrays": 2,
+            "react-native/no-unused-styles": 2,
+            "react-native/sort-styles": 2,
+            "react-native/split-platform-components": 2,
+        },
+    )
+
+    assert.equal(rawTextResult.fatalErrorCount, 0, JSON.stringify(rawTextResult.messages))
+    assertRuleMessage(rawTextResult, "react-native/no-raw-text", 2)
+    assert.equal(wrappedTextResult.fatalErrorCount, 0, JSON.stringify(wrappedTextResult.messages))
+
+    assert.equal(
+        wrappedTextResult.messages.some(message => message.ruleId === "react-native/no-raw-text"),
+        false,
+    )
+
     assert.equal(metroResult.fatalErrorCount, 0, JSON.stringify(metroResult.messages))
 
     assert.equal(
@@ -192,6 +221,11 @@ test("integrates Expo Flat Config for flat React Native projects without redefin
     assert.equal(
         config.some(item => item.plugins?.["react-refresh"]),
         false,
+    )
+
+    assert.equal(
+        config.some(item => item.plugins?.["react-native"]),
+        true,
     )
 
     assert.equal(await eslint.isPathIgnored(".expo/types/router.d.ts"), true)
@@ -216,6 +250,30 @@ test("registers the Expo plugin for custom rules when recommendations are disabl
 
     assert.equal(result.fatalErrorCount, 0, JSON.stringify(result.messages))
     assertRuleMessage(result, "expo/no-dynamic-env-var", 2)
+})
+
+test("allows Expo projects to whitelist custom native text wrappers", async () => {
+    const config = defineConfig({
+        next: false,
+        react: false,
+        expo: {
+            enabled: true,
+            recommended: false,
+            rules: {
+                "react-native/no-raw-text": ["error", { skip: ["Button.Label"] }],
+            },
+        },
+        node: false,
+    })
+
+    const result = await lint(config, "export default function Action() { return <Button.Label>safe label</Button.Label> }\n", "action.jsx")
+
+    assert.equal(result.fatalErrorCount, 0, JSON.stringify(result.messages))
+
+    assert.equal(
+        result.messages.some(message => message.ruleId === "react-native/no-raw-text"),
+        false,
+    )
 })
 
 test("keeps the documented default rule contract and Node settings", () => {
@@ -245,6 +303,7 @@ test("keeps the documented default rule contract and Node settings", () => {
 
     assert.deepEqual(reactRuntime?.rules["react/jsx-fragments"], ["warn", "element"])
     assert.deepEqual(reactRuntime?.rules["react/self-closing-comp"], ["warn", { component: true, html: true }])
+    assert.equal(hasOwn(reactRuntime?.rules, "react-native/no-raw-text"), false)
     assert.equal(reactRuntime?.rules["react-refresh/only-export-components"], "off")
     assert.equal(reactRuntime?.rules["react-hooks/set-state-in-effect"], "off")
 })

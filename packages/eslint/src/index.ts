@@ -110,6 +110,16 @@ const defaultReactRules: RulesConfig = {
     ],
 }
 
+const defaultExpoRules: RulesConfig = {
+    "react-native/no-color-literals": "error",
+    "react-native/no-inline-styles": "error",
+    "react-native/no-raw-text": "error",
+    "react-native/no-single-element-style-arrays": "error",
+    "react-native/no-unused-styles": "error",
+    "react-native/sort-styles": "error",
+    "react-native/split-platform-components": "error",
+}
+
 const defaultTypeAwareRules: RulesConfig = {
     "@typescript-eslint/no-deprecated": "error",
 }
@@ -603,10 +613,13 @@ export function defineConfig({ next, react, expo, node, target, directories, ign
     if (expoFeature.enabled) {
         if (!hasDependency("eslint-config-expo")) throw new Error('Expo support requires "eslint-config-expo" to be installed in the project.')
 
+        const reactNativePlugin = requireCached<ConfigurablePlugin>("eslint-plugin-react-native")
+
         const knownPlugins: Record<string, ConfigurablePlugin> = {
             "@typescript-eslint": tseslint.plugin as ConfigurablePlugin,
             ...(reactPlugin ? { react: reactPlugin } : {}),
             ...(reactHooksPlugin ? { "react-hooks": reactHooksPlugin } : {}),
+            "react-native": reactNativePlugin,
         }
 
         const expoConfigs = replaceKnownPluginInstances(requireCached<unknown>("eslint-config-expo/flat.js"), knownPlugins)
@@ -616,6 +629,8 @@ export function defineConfig({ next, react, expo, node, target, directories, ign
 
         if (expoFeature.recommended) configWithExtends.push(...createScopedExtends(expoConfigs, browserScopes))
         else configWithExtends.push(...createScopedExtends([{ plugins: { expo: expoPlugin } }], browserScopes))
+
+        configWithExtends.push(...createScopedExtends([{ plugins: { "react-native": reactNativePlugin } }], browserScopes))
 
         configWithExtends.push(
             ...createScopedExtends(
@@ -629,7 +644,12 @@ export function defineConfig({ next, react, expo, node, target, directories, ign
             ),
         )
 
-        configWithExtends.push(...createScopedExtends(expoFeature.extends, browserScopes, { expo: expoPlugin }))
+        configWithExtends.push(
+            ...createScopedExtends(expoFeature.extends, browserScopes, {
+                expo: expoPlugin,
+                "react-native": reactNativePlugin,
+            }),
+        )
     }
 
     if (nextFeature.enabled) {
@@ -672,6 +692,7 @@ export function defineConfig({ next, react, expo, node, target, directories, ign
     const browserRules: RulesConfig = {
         ...mergedBaseRules,
         ...(reactFeature.enabled ? defaultReactRules : {}),
+        ...(expoFeature.enabled ? defaultExpoRules : {}),
         ...(reactFeature.enabled && reactFeature.recommended
             ? {
                   "react-hooks/set-state-in-effect": "off",
