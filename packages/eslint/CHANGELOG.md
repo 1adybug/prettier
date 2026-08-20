@@ -1,5 +1,11 @@
 # @1adybug/eslint
 
+## 0.0.17
+
+### Patch Changes
+
+- 88b063d: 为 Expo/React Native 项目启用 `eslint-plugin-react-native` 全部规则，并支持按项目精确配置自定义文本组件白名单。
+
 ## 0.0.16
 
 ### Patch Changes
