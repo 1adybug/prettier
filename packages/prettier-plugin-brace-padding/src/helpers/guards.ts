@@ -55,7 +55,6 @@ export function isBlockLikeStatement(node: NodeBase): boolean {
         case "TryStatement":
         case "SwitchStatement":
         case "FunctionDeclaration":
-        case "ClassDeclaration":
         // fallthrough: TypeScript module declarations are also block-like.
         case "TSModuleDeclaration":
         // fallthrough: class methods are block-like too.
@@ -116,16 +115,24 @@ export function isClassProperty(node: NodeBase): boolean {
     }
 }
 
-// 判断是否 TypeScript 的类型声明（interface/type/enum）
-export function isTsTypeDeclaration(node: NodeBase): boolean {
-    if (!node || typeof node.type !== "string") return false
+// Class declarations have their own rule and never fall through to block rules.
+export function getDeclarationRule(node: NodeBase): "types" | "interfaces" | "enums" | "classes" | undefined {
+    if (!node || typeof node.type !== "string") return undefined
 
     node = unwrapExportDeclaration(node)
 
-    // 直接的 TS 类型声明
-    if (node.type === "TSInterfaceDeclaration" || node.type === "TSTypeAliasDeclaration" || node.type === "TSEnumDeclaration") return true
-
-    return false
+    switch (node.type) {
+        case "TSTypeAliasDeclaration":
+            return "types"
+        case "TSInterfaceDeclaration":
+            return "interfaces"
+        case "TSEnumDeclaration":
+            return "enums"
+        case "ClassDeclaration":
+            return "classes"
+        default:
+            return undefined
+    }
 }
 
 // 判断表达式是否为对象或数组字面量（无条件留空）

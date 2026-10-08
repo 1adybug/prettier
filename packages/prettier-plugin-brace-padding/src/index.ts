@@ -1,7 +1,11 @@
 import { type AstPath, type Doc, type ParserOptions, type Plugin as PrettierPlugin, type Printer, doc } from "prettier"
 import * as estreePlugin from "prettier/plugins/estree"
 
+import { isPaddingContainer, paddingOptions, resolvePaddingOptions, shouldPadContainer } from "./options.js"
+
 import { printStatementSequence } from "./helpers/sequence"
+
+export type { BlockPaddingRule, Options } from "./options.js"
 
 const { builders } = doc
 const { hardline, indent } = builders
@@ -43,6 +47,11 @@ function createPatchedEstreePrinter(base: Printer): Printer {
             }
         }
 
+        if (!isPaddingContainer(node.type)) return base.print(path, options, print)
+
+        const padding = resolvePaddingOptions(options)
+        if (!shouldPadContainer(node.type, padding)) return base.print(path, options, print, args)
+
         // 在 Program、TSModuleBlock 和 BlockStatement 级别改写"语句序列"的拼接逻辑
         if (node.type === "Program") {
             const hasBody = Array.isArray(node.body) && node.body.length > 0
@@ -79,14 +88,14 @@ function createPatchedEstreePrinter(base: Printer): Printer {
             if (hasDanglingComments) return base.print(path, options, print, args)
 
             // Program 没有包裹符号，直接打印语句序列，并确保以换行结束文件
-            const seq = printStatementSequence(path as unknown as any, p => print(p as AstPath) as unknown as Doc)
+            const seq = printStatementSequence(path as unknown as any, p => print(p as AstPath) as unknown as Doc, padding)
 
             return [seq, hardline]
         }
 
         // namespace/module 的块体，形如: namespace A { ... }
         if (node.type === "TSModuleBlock") {
-            const printed = printStatementSequence(path as unknown as any, p => print(p as AstPath) as unknown as Doc)
+            const printed = printStatementSequence(path as unknown as any, p => print(p as AstPath) as unknown as Doc, padding)
 
             const hasBody = Array.isArray(node.body) && node.body.length > 0
 
@@ -115,7 +124,7 @@ function createPatchedEstreePrinter(base: Printer): Printer {
             if (!hasBody) return ["{", "}"]
 
             // 打印语句序列
-            const printed = printStatementSequence(path as unknown as any, p => print(p as AstPath) as unknown as Doc)
+            const printed = printStatementSequence(path as unknown as any, p => print(p as AstPath) as unknown as Doc, padding)
 
             // 将 hardline 放入 indent 内部，确保首行也会被缩进
             return ["{", indent([hardline, printed]), hardline, "}"]
@@ -131,7 +140,7 @@ function createPatchedEstreePrinter(base: Printer): Printer {
             if (!hasBody && hasComments) return base.print(path, options, print, args)
             if (!hasBody) return ["static ", "{", "}"]
 
-            const printed = printStatementSequence(path as unknown as any, p => print(p as AstPath) as unknown as Doc)
+            const printed = printStatementSequence(path as unknown as any, p => print(p as AstPath) as unknown as Doc, padding)
 
             return ["static ", "{", indent([hardline, printed]), hardline, "}"]
         }
@@ -149,7 +158,7 @@ function createPatchedEstreePrinter(base: Printer): Printer {
             if (!hasBody) return ["{", "}"]
 
             // 打印类成员序列
-            const printed = printStatementSequence(path as unknown as any, p => print(p as AstPath) as unknown as Doc)
+            const printed = printStatementSequence(path as unknown as any, p => print(p as AstPath) as unknown as Doc, padding)
 
             // 将 hardline 放入 indent 内部，确保首行也会被缩进
             return ["{", indent([hardline, printed]), hardline, "}"]
@@ -161,14 +170,7 @@ function createPatchedEstreePrinter(base: Printer): Printer {
     function willPrintOwnComments(path: AstPath, options?: ParserOptions): boolean {
         const node = path.node as NodeWithType | null
 
-        if (
-            node &&
-            (node.type === "Program" ||
-                node.type === "TSModuleBlock" ||
-                node.type === "BlockStatement" ||
-                node.type === "StaticBlock" ||
-                node.type === "ClassBody")
-        ) {
+        if (node?.type && isPaddingContainer(node.type) && shouldPadContainer(node.type, resolvePaddingOptions(options))) {
             return (
                 // 将自定义语句容器的注释交回给通用注释打印逻辑，避免遗漏
                 false
@@ -193,6 +195,7 @@ const printers = {
 // 这样可以避免覆盖其他插件的 parsers（如 removeBraces、tailwindcss 等）
 const plugin: PrettierPlugin = {
     printers,
+    options: paddingOptions,
 }
 
 export default plugin

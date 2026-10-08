@@ -8,6 +8,8 @@ A Prettier plugin that inserts blank lines between selected statements and class
 
 ## Key Features
 
+The following describes the default behavior. The [configuration options](#configuration) control rules, scope, and blank-line count.
+
 - **All Code Blocks Grouping**: Inserts an additional blank line before and after specific statements in file top-level, function bodies, if/for/while statement blocks, TypeScript namespaces, and class static initialization blocks (i.e., two line breaks separating adjacent statements), enhancing structural separation. Switch-case sequences remain delegated to Prettier because they are not block statements.
 - **Smart Multi-line Expression Block Recognition**: Automatically identifies and adds blank lines around multi-line expression blocks such as template literals, function expressions, class expressions, JSX elements, etc., improving code readability.
 - **TypeScript Namespace Support**: Applies the same rules to member statements inside `namespace`/`module` (`TSModuleBlock`), ensuring correct line breaks between braces and first/last lines.
@@ -17,7 +19,7 @@ A Prettier plugin that inserts blank lines between selected statements and class
 
 ## Behavior Details
 
-In statement containers (`Program`, `BlockStatement`, `TSModuleBlock`, and `StaticBlock`) and class bodies (`ClassBody`), the plugin adds a blank line between adjacent statements or members in the following cases:
+With the default configuration, statement containers (`Program`, `BlockStatement`, `TSModuleBlock`, and `StaticBlock`) and class bodies (`ClassBody`) receive a blank line between adjacent statements or members in the following cases. See [Configuration](#configuration) to select rules and spacing:
 
 ### Unconditional Blank Lines (Even for Single Lines)
 
@@ -28,9 +30,11 @@ In statement containers (`Program`, `BlockStatement`, `TSModuleBlock`, and `Stat
 
 ### Blank Lines Only for Multi-line Cases
 
-- **Multi-line Block Statements**: When a statement's printed result is multi-line (e.g., `if`, `for`, `while`, `do/while`, `try/catch/finally`, `switch`, `function`, `class`, `TSModuleDeclaration`, etc.), an additional blank line is added between it and adjacent statements.
+- **Multi-line Block Statements**: When a statement's printed result is multi-line (e.g., `if`, `for`, `while`, `do/while`, `try/catch/finally`, `switch`, `function`, `TSModuleDeclaration`, etc.), an additional blank line is added between it and adjacent statements.
 
-- **Multi-line Expression Blocks** (New): When the following expressions span multiple lines, an additional blank line is added between them and adjacent statements:
+- **Class Declarations**: The separate `classes` rule pads multiline class declarations by default; `blockPaddingClassMode: "always"` also includes single-line and empty classes.
+
+- **Multi-line Expression Blocks**: When the following expressions span multiple lines, an additional blank line is added between them and adjacent statements:
     - Template literals: `` `...` ``
     - Tagged templates: ``styled`...` ``
     - Arrow function expressions: `() => {}`
@@ -47,7 +51,7 @@ In statement containers (`Program`, `BlockStatement`, `TSModuleBlock`, and `Stat
 - **Padding Between Statements and Class Members**: The plugin controls container braces and statement/member separators; expression and object-property formatting remains delegated to Prettier. Function bodies and other nested statement containers receive the same padding rules.
 - **Single-line Exceptions**: Type declarations, object/array literals, and adjacent class properties/methods can trigger padding even when printed on one line.
 
-> Summary: The plugin always ensures "at least one line break between adjacent statements", and when rules are matched, an additional line break is added to form a visual blank line.
+Adjacent statements are separated by a line break. Matching boundaries receive one additional line break by default, creating one blank line.
 
 ## Examples
 
@@ -170,22 +174,92 @@ export default {
 - **Parsers**: `babel`, `babel-ts`, `typescript`
 - **Module**: ESM
 
-## Configuration and Plugin Composition
+## Configuration
 
-There are currently no plugin-specific options to toggle individual padding rules, restrict padding to the file top level, or set the number of blank lines. At most **one blank line** is emitted between statements, even if the input contains more. One blank line means two newline characters, not two empty lines.
+All options are available in JavaScript/JSON configurations and as native Prettier CLI options. Defaults preserve the existing formatting behavior.
+
+| Option                  | Default              | Values and behavior                                                                                                  |
+| ----------------------- | -------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `blockPaddingRules`     | All nine rules below | An array of enabled rules; `[]` disables padding and delegates printing and comment handling to Prettier             |
+| `blockPaddingScope`     | `"all"`              | `"all"` for supported containers; `"top-level"` for the file's `Program` only                                        |
+| `blockPaddingMode`      | `"around"`           | `"around"` requires either neighboring statement to match; `"between"` requires both                                 |
+| `blockPaddingLines`     | `1`                  | A positive safe integer specifying actual blank lines at matching boundaries                                         |
+| `blockPaddingClassMode` | `"multiline"`        | `"multiline"` uses the existing forced-break detection; `"always"` includes single-line and empty class declarations |
+
+### Rule Names
+
+| Rule                         | Matches                                                                                      |
+| ---------------------------- | -------------------------------------------------------------------------------------------- |
+| `types`                      | Only `type` aliases, including primitive, union, object, and generic aliases                 |
+| `interfaces`                 | Interface declarations, including inherited, generic, and empty interfaces                   |
+| `enums`                      | Enum declarations, including `const enum`                                                    |
+| `classes`                    | Class declarations, including abstract, declare, empty, and anonymous default-export classes |
+| `object-array-literals`      | Statements initialized with or consisting of supported object/array literals                 |
+| `multiline-blocks`           | Supported multiline block statements, excluding class declarations                           |
+| `multiline-expressions`      | Supported multiline expressions, including class expressions                                 |
+| `multiline-class-members`    | Supported multiline class members                                                            |
+| `property-method-boundaries` | Adjacent class property/method boundaries, including empty methods                           |
+
+Declaration rules recognize applicable `export`, `export default`, and `declare` forms. `types` is not a combined rule for interfaces, enums, or classes. Class expressions such as `const C = class {}` remain controlled by `multiline-expressions`; `blockPaddingClassMode` only affects class declarations. Rule order and duplicate entries do not change the result.
+
+### Two Blank Lines Between Top-level Declarations
+
+Create `prettier.config.mjs`:
+
+```js
+export default {
+    plugins: ["@1adybug/prettier-plugin-block-padding"],
+    semi: false,
+    tabWidth: 4,
+    blockPaddingRules: ["types", "interfaces", "enums", "classes"],
+    blockPaddingScope: "top-level",
+    blockPaddingMode: "between",
+    blockPaddingLines: 2,
+    blockPaddingClassMode: "always",
+}
+```
+
+Only consecutive statements matching the selected declaration rules receive two blank lines. Different selected declaration kinds can match each other. Function bodies, namespaces, static blocks, and class bodies use native Prettier formatting under `"top-level"` scope.
+
+For example, the output includes **two actual empty lines** between declarations:
+
+<!-- prettier-ignore -->
+```ts
+type UserId = string
+
+
+interface User {
+    id: UserId
+}
+
+
+class Service {}
+```
+
+Matching boundaries use exactly `blockPaddingLines` empty lines: `2` means three newline characters. Unmatched boundaries retain at most one existing blank line. `property-method-boundaries` directly matches a property/method pair independently of `blockPaddingMode`; both class-member rules only apply inside class bodies. An empty `blockPaddingRules` array disables this plugin's padding; other composed plugins can still run.
+
+Unknown rules or enum values and zero, negative, fractional, or unsafe blank-line counts are rejected.
+
+## Plugin Composition
 
 For the supported combination with the other `@1adybug` plugins and Tailwind CSS, use [@1adybug/prettier](../prettier/README.md). Third-party parser/printer combinations, including `@ianvs/prettier-plugin-sort-imports`, are not covered by that integration and should be verified separately.
 
 ## Scope and Limitations
 
-- Inserts additional blank lines "between statements" in all code blocks (including file top-level, function bodies, if/for/while statement blocks, TS namespace blocks).
+- By default, inserts additional blank lines "between statements" in supported containers (including file top-level, function bodies, if/for/while statement blocks, TS namespace blocks).
 - Supported expression block types: template literals, tagged templates (e.g., styled-components), arrow functions, function expressions, class expressions, multi-line function calls, new expressions, JSX elements, and fragments.
 - Leaves expression and object-property formatting to Prettier, while controlling statement containers and class member separators.
 - Multiline detection uses forced breaks in Prettier's document representation; wrapping caused only by `printWidth` may not trigger padding.
 - Statement containers with directive prologues (for example, function-level `"use strict"`) are delegated to Prettier, so padding is skipped only inside that container rather than risking directive loss.
 - Programs with dangling comments and commented empty bodies are also delegated to Prettier. Automatic padding may be skipped in those containers to preserve their syntax and comments.
 - Will not arbitrarily add extra blank lines at the beginning/end of files/blocks.
-- Single-line expressions do not normally trigger blank lines; the type declaration, object/array literal, and property/method rules are exceptions.
+- Single-line statements do not normally trigger blank lines; the type declaration, object/array literal, and property/method rules are exceptions. Class declarations also qualify when `blockPaddingClassMode` is `"always"`.
+
+## Exports
+
+- Default export: the Prettier printer plugin, including its registered options.
+- `BlockPaddingRule`: the union of supported rule names.
+- `Options`: standard Prettier options extended with the five padding options.
 
 ## Quick Local Testing
 

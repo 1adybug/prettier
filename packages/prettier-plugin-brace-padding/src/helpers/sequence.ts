@@ -1,15 +1,17 @@
 import { type Doc, doc } from "prettier"
 
+import type { ResolvedPaddingOptions } from "../options.js"
+
 import {
     type NodeBase,
     type StatementContainer,
+    getDeclarationRule,
     hasOtherBlockExpression,
     hasTopLevelObjectOrArrayLiteral,
     isBlockLikeStatement,
     isClassMember,
     isClassMethod,
     isClassProperty,
-    isTsTypeDeclaration,
 } from "./guards.js"
 
 const { builders, utils } = doc
@@ -36,6 +38,8 @@ interface SourceLocation {
 
 interface CommentNode {
     loc?: SourceLocation
+    leading?: boolean
+    trailing?: boolean
 }
 
 interface LocatableNode {
@@ -54,28 +58,31 @@ function isPrintableStatement(stmt: NodeBase): boolean {
 }
 
 // 判断当前语句是否需要在前后添加空行（根据 README 规则）
-function shouldPadAroundStatement(stmt: NodeBase, childDoc: Doc): boolean {
-    // TypeScript 类型声明：无条件留空
-    if (isTsTypeDeclaration(stmt)) return true
+function shouldPadAroundStatement(stmt: NodeBase, childDoc: Doc, options: ResolvedPaddingOptions): boolean {
+    const declarationRule = getDeclarationRule(stmt)
+
+    if (declarationRule) {
+        if (!options.rules.has(declarationRule)) return false
+
+        return declarationRule !== "classes" || options.classMode === "always" || utils.willBreak(childDoc)
+    }
 
     // 对象/数组字面量：无条件留空
-    if (hasTopLevelObjectOrArrayLiteral(stmt)) return true
+    if (options.rules.has("object-array-literals") && hasTopLevelObjectOrArrayLiteral(stmt)) return true
 
     // 类成员：多行时才留空（如多行方法）
     if (isClassMember(stmt)) {
         // 只有多行的类成员才添加空行
-        if (!utils.willBreak(childDoc)) return false
-
-        return true
+        return options.rules.has("multiline-class-members") && utils.willBreak(childDoc)
     }
 
     // 多行块状语句：需为多行时才留空，避免一行 {} 的情况
     if (!utils.willBreak(childDoc)) return false
 
-    if (isBlockLikeStatement(stmt)) return true
+    if (isBlockLikeStatement(stmt)) return options.rules.has("multiline-blocks")
 
     // 其他块类型表达式（模板字符串、函数表达式等）：多行时才留空
-    if (hasOtherBlockExpression(stmt)) return true
+    if (hasOtherBlockExpression(stmt)) return options.rules.has("multiline-expressions")
 
     return false
 }
@@ -85,19 +92,24 @@ function getOriginalEmptyLinesBetween(prevNode: NodeBase, currNode: NodeBase): n
     const anyPrev = prevNode as unknown as LocatableNode
     const anyCurr = currNode as unknown as LocatableNode
 
-    const prevEndLine = anyPrev.loc?.end?.line
+    let prevEndLine = anyPrev.loc?.end?.line
     let currStartLine = anyCurr.loc?.start?.line
 
-    // 如果当前节点有前置注释，使用第一个前置注释的起始行
-    const comments = anyCurr.comments
+    if (typeof prevEndLine !== "number" || typeof currStartLine !== "number") return 0
 
-    if (comments && comments.length > 0) {
-        const firstCommentLine = comments[0]?.loc?.start?.line
+    // 注释属于语句打印结果的一部分，空行只计算在前一语句尾注释之后、
+    // 当前语句前置注释之前，避免把多行注释本身误算成空行。
+    for (const comment of anyPrev.comments ?? []) {
+        const endLine = comment.loc?.end?.line
 
-        if (typeof firstCommentLine === "number") currStartLine = firstCommentLine
+        if (comment.trailing && typeof endLine === "number") prevEndLine = Math.max(prevEndLine, endLine)
     }
 
-    if (typeof prevEndLine !== "number" || typeof currStartLine !== "number") return 0
+    for (const comment of anyCurr.comments ?? []) {
+        const startLine = comment.loc?.start?.line
+
+        if (comment.leading && typeof startLine === "number") currStartLine = Math.min(currStartLine, startLine)
+    }
 
     // 行差减 1 就是空行数（例如：第 2 行结束，第 4 行开始，中间有 1 个空行）
     const emptyLines = currStartLine - prevEndLine - 1
@@ -105,7 +117,7 @@ function getOriginalEmptyLinesBetween(prevNode: NodeBase, currNode: NodeBase): n
 }
 
 // 将容器的语句序列打印并插入空行
-export function printStatementSequence(path: PrettierPathLike, print: PrintFn): Doc {
+export function printStatementSequence(path: PrettierPathLike, print: PrintFn, options: ResolvedPaddingOptions): Doc {
     const node = path.getValue() as StatementContainer
 
     const parts: Doc[] = []
@@ -116,7 +128,7 @@ export function printStatementSequence(path: PrettierPathLike, print: PrintFn): 
     // 先收集每个语句的 Doc 以及其是否需要留空
     const children: PrintedChild[] = printableStatements.map(({ stmt, index }) => {
         const childDoc = path.call(p => print(p), "body", index) as unknown as Doc
-        const needPad = shouldPadAroundStatement(stmt, childDoc)
+        const needPad = shouldPadAroundStatement(stmt, childDoc, options)
         return { doc: childDoc, needPad, originalIndex: index }
     })
 
@@ -130,19 +142,16 @@ export function printStatementSequence(path: PrettierPathLike, print: PrintFn): 
             const currentStatement = body[children[i].originalIndex]
             const originalEmptyLines = getOriginalEmptyLinesBetween(previousStatement, currentStatement)
 
-            // 计算插件规则要求的空行数（0 或 1）
-            let requiredEmptyLines = needPad || (prev && prev.needPad) ? 1 : 0
+            const matchesStatements = options.mode === "between" ? needPad && prev.needPad : needPad || prev.needPad
+            const matchesMemberBoundary =
+                node.type === "ClassBody" &&
+                options.rules.has("property-method-boundaries") &&
+                ((isClassProperty(previousStatement) && isClassMethod(currentStatement)) ||
+                    (isClassMethod(previousStatement) && isClassProperty(currentStatement)))
 
-            // 特殊处理：类属性和类方法之间应该添加空行（用于分隔不同类型的成员）
-            if (
-                (isClassProperty(previousStatement) && isClassMethod(currentStatement)) ||
-                (isClassMethod(previousStatement) && isClassProperty(currentStatement))
-            )
-                requiredEmptyLines = 1
-
-            // 取两者的最大值，保留原有空行的同时满足插件规则
-            // 但限制最多 1 个空行，与 prettier 默认行为保持一致
-            const emptyLinesToAdd = Math.min(1, Math.max(originalEmptyLines, requiredEmptyLines))
+            // Selected boundaries get exactly the configured spacing; other
+            // boundaries keep Prettier's existing one-blank-line limit.
+            const emptyLinesToAdd = matchesStatements || matchesMemberBoundary ? options.lines : Math.min(1, originalEmptyLines)
 
             // 插入换行：1 个 hardline 用于分隔语句，额外的 hardline 形成空行
             parts.push(hardline)

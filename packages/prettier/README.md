@@ -42,7 +42,7 @@ pnpm exec prettier --write "src/**/*.{js,jsx,ts,tsx}"
 
 - Imports are grouped as React (including React DOM and React Native), Node.js built-ins, third-party modules, aliases resolved through the nearest `tsconfig.json`, and relative paths. Alias and relative-path groups are further split by directory, with one blank line between groups. Alias resolution and directory grouping require a `filepath`; the Prettier CLI supplies it when formatting files.
 - Side-effect imports retain their relative positions by default. Unused-import removal and automatic type-only import marking are disabled by default.
-- Block padding is enabled by default and keeps at most one blank line. There are currently no independent padding-rule switches or options to limit padding to the file top level.
+- Block padding defaults to all rules and one blank line. The five `blockPadding*` options select declaration kinds, scope, boundary mode, blank-line count, and class declaration behavior; `blockPaddingRules: []` disables padding.
 - Ordinary single-statement control blocks and explicit-return arrow functions follow the remove-braces plugin's transforms. Nested control statements, multiline statements, and `void` arrows are controlled by their corresponding options.
 - Tailwind CSS class sorting runs through the composed plugin. Options such as `tailwindConfig`, `tailwindStylesheet`, and `tailwindFunctions` can be set in the Prettier configuration.
 
@@ -56,11 +56,54 @@ For each plugin's options and limits, see:
 - [Block padding](../prettier-plugin-brace-padding/README.md)
 - [Brace transforms](../prettier-plugin-remove-braces/README.md)
 
+## Block Padding
+
+The same five options as the [standalone padding plugin](../prettier-plugin-brace-padding/README.md#configuration) can be set directly in the Prettier configuration:
+
+| Option                  | Default              | Behavior                                                           |
+| ----------------------- | -------------------- | ------------------------------------------------------------------ |
+| `blockPaddingRules`     | All nine rules below | Enabled rule array; `[]` disables padding                          |
+| `blockPaddingScope`     | `"all"`              | Supported containers, or only `Program` with `"top-level"`         |
+| `blockPaddingMode`      | `"around"`           | Either neighboring statement matches, or both with `"between"`     |
+| `blockPaddingLines`     | `1`                  | Actual blank lines at matching boundaries; a positive safe integer |
+| `blockPaddingClassMode` | `"multiline"`        | Multiline class declarations, or all classes with `"always"`       |
+
+| Rule                         | Matches                                                                                      |
+| ---------------------------- | -------------------------------------------------------------------------------------------- |
+| `types`                      | Only `type` aliases, including primitive, union, object, and generic aliases                 |
+| `interfaces`                 | Interface declarations, including inherited, generic, and empty interfaces                   |
+| `enums`                      | Enum declarations, including `const enum`                                                    |
+| `classes`                    | Class declarations, including abstract, declare, empty, and anonymous default-export classes |
+| `object-array-literals`      | Supported object/array literal statements                                                    |
+| `multiline-blocks`           | Supported multiline block statements, excluding class declarations                           |
+| `multiline-expressions`      | Supported multiline expressions, including class expressions                                 |
+| `multiline-class-members`    | Supported multiline class members                                                            |
+| `property-method-boundaries` | Adjacent class property/method boundaries                                                    |
+
+Declaration rules recognize applicable `export`, `export default`, and `declare` forms. Class expressions remain controlled by `multiline-expressions`. The property/method boundary rule works independently of `blockPaddingMode`.
+
+For two blank lines only between consecutive selected top-level declarations:
+
+```js
+export default {
+    plugins: ["@1adybug/prettier"],
+    semi: false,
+    tabWidth: 4,
+    blockPaddingRules: ["types", "interfaces", "enums", "classes"],
+    blockPaddingScope: "top-level",
+    blockPaddingMode: "between",
+    blockPaddingLines: 2,
+    blockPaddingClassMode: "always",
+}
+```
+
+`blockPaddingClassMode: "always"` includes empty class declarations. Matching boundaries use exactly the requested number of empty lines; unmatched boundaries retain at most one existing blank line. `"top-level"` delegates nested containers to Prettier. Unknown rules, invalid enum values, and invalid blank-line counts are rejected. Disabling padding does not disable import sorting, brace transforms, or Tailwind class sorting.
+
 ## Exports
 
 - Default export and named export `plugin`: the composed Prettier plugin.
 - `config`: the import-sorting and plugin-composition configuration for `createPlugin`, not a Prettier configuration file object.
-- `Options`: the TypeScript type containing standard Prettier options, import-sorting options, and brace-transform options.
+- `Options`: the TypeScript type containing standard Prettier options, import-sorting options, padding options, and brace-transform options.
 
 ## Customizing the Built-in Groups
 

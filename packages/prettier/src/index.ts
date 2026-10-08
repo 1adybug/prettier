@@ -2,14 +2,14 @@ import { existsSync, readdirSync, statSync } from "node:fs"
 import { builtinModules } from "node:module"
 import { join, parse, resolve } from "node:path"
 
-import blockPadding from "@1adybug/prettier-plugin-block-padding"
+import blockPadding, { type Options as BlockPaddingOptions } from "@1adybug/prettier-plugin-block-padding"
 import removeBraces, { type Options as RemoveBracesOptions } from "@1adybug/prettier-plugin-remove-braces"
 import { type PluginConfig, type Options as SortImportsOptions, createPlugin } from "@1adybug/prettier-plugin-sort-imports"
 import type { Plugin } from "prettier"
 import * as tailwindcss from "prettier-plugin-tailwindcss"
 import { createMatchPath, loadConfig } from "tsconfig-paths"
 
-export interface Options extends RemoveBracesOptions, SortImportsOptions {}
+export interface Options extends RemoveBracesOptions, SortImportsOptions, BlockPaddingOptions {}
 
 function isPossibleFile(base: string, item: string) {
     if (!item.startsWith(`${base}.`)) return false

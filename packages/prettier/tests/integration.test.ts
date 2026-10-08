@@ -3,7 +3,7 @@ import { dirname, resolve } from "node:path"
 import { describe, test } from "node:test"
 import { fileURLToPath, pathToFileURL } from "node:url"
 
-import { type Plugin, format } from "prettier"
+import { type Plugin, format, getSupportInfo } from "prettier"
 
 interface PrettierModule {
     default: Plugin
@@ -227,6 +227,84 @@ if (ready) { execute() }
 
 if (ready) execute()
 `,
+        )
+    })
+})
+
+describe("padding option composition", () => {
+    test("exposes the standalone padding options through the aggregate plugin", async () => {
+        const plugin = await loadPlugin()
+        const { options } = await getSupportInfo({ plugins: [plugin] })
+
+        assert.deepEqual(
+            options
+                .filter(option => option.name?.startsWith("blockPadding"))
+                .map(option => option.name)
+                .sort(),
+            ["blockPaddingClassMode", "blockPaddingLines", "blockPaddingMode", "blockPaddingRules", "blockPaddingScope"],
+        )
+    })
+
+    test("pads only consecutive selected top-level declarations with two blank lines", async () => {
+        const source = "const before = 1\nexport type A = string\nexport interface B {}\nexport const enum C { Active }\nclass D {}\nconst after = 2"
+
+        const options = {
+            blockPaddingRules: ["types", "interfaces", "enums", "classes"],
+            blockPaddingScope: "top-level",
+            blockPaddingMode: "between",
+            blockPaddingLines: 2,
+            blockPaddingClassMode: "always",
+        }
+
+        const expected =
+            "const before = 1\nexport type A = string\n\n\nexport interface B {}\n\n\nexport const enum C {\n    Active,\n}\n\n\nclass D {}\nconst after = 2\n"
+
+        for (const parser of ["typescript", "babel-ts"]) {
+            const output = await formatCode(source, { ...options, parser })
+            assert.equal(output, expected, parser)
+            assert.equal(await formatCode(output, { ...options, parser }), output, parser)
+        }
+    })
+
+    test("disabling padding preserves the other bundled transforms", async () => {
+        const source = `import { z, a } from "./module"
+const callback = value => { console.log(a, z, value) }
+const view = <div className="p-4 flex" />`
+
+        const output = await formatCode(source, { blockPaddingRules: [] })
+
+        assert.equal(
+            output,
+            `import { a, z } from "./module"
+
+const callback = value => void console.log(a, z, value)
+const view = <div className="flex p-4" />
+`,
+        )
+
+        assert.equal(await formatCode(output, { blockPaddingRules: [] }), output)
+    })
+
+    test("configures empty class declarations consistently in every parser", async () => {
+        const options = { blockPaddingRules: ["classes"], blockPaddingScope: "top-level", blockPaddingMode: "between", blockPaddingLines: 2 }
+
+        for (const parser of ["babel", "babel-ts", "typescript"]) {
+            assert.equal(await formatCode("class A {}\nclass B {}", { ...options, parser }), "class A {}\nclass B {}\n", parser)
+            assert.equal(
+                await formatCode("class A {}\nclass B {}", { ...options, blockPaddingClassMode: "always", parser }),
+                "class A {}\n\n\nclass B {}\n",
+                parser,
+            )
+        }
+    })
+
+    test("disabled class declaration padding does not disable member spacing", async () => {
+        const output = await formatCode("const before = 1\nclass Value { first = 1; method() { execute() }; second = 2 }\nconst after = 2", {
+            blockPaddingRules: ["multiline-blocks", "multiline-class-members", "property-method-boundaries"],
+        })
+        assert.equal(
+            output,
+            "const before = 1\nclass Value {\n    first = 1\n\n    method() {\n        execute()\n    }\n\n    second = 2\n}\nconst after = 2\n",
         )
     })
 })
