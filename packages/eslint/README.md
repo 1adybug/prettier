@@ -1,16 +1,22 @@
 # @1adybug/eslint
 
-推荐的 ESLint Flat Config，内置 TypeScript、React、Expo/React Native、Next.js、Node.js 常见规则，并支持按目录拆分运行时环境。
+> **Notice: This project is implemented entirely by AI coding tools.**
 
-## 安装
+[中文文档](./README.zh-CN.md)
+
+A recommended ESLint Flat Config with common TypeScript, React, Expo/React Native, Next.js, and Node.js rules, supporting runtime environments split by directory.
+
+## Installation
 
 ```bash
 pnpm add -D eslint @1adybug/eslint
 ```
 
-## 快速开始
+Requires ESLint `^9.39.4`. Expo projects also need an `eslint-config-expo` version matching their SDK; the optional peer dependency requires `>=53.0.0`.
 
-`eslint.config.mjs`
+## Quick Start
+
+Create `eslint.config.mjs`:
 
 ```js
 import config from "@1adybug/eslint"
@@ -18,15 +24,21 @@ import config from "@1adybug/eslint"
 export default config
 ```
 
-也可以直接重新导出默认配置：
+Or re-export the default configuration directly:
 
 ```js
 export { default } from "@1adybug/eslint"
 ```
 
-## 自定义配置
+Run ESLint with the configuration above:
 
-`eslint.config.mjs`
+```bash
+pnpm exec eslint .
+```
+
+## Custom Configuration
+
+In `eslint.config.mjs`:
 
 ```js
 import { defineConfig } from "@1adybug/eslint"
@@ -43,70 +55,89 @@ export default defineConfig({
 })
 ```
 
-## 参数说明
+## Parameters
 
-`defineConfig(params)` 支持以下参数：
+`defineConfig(params)` accepts:
 
 - `next`: `boolean | FeatureOptions`
 - `react`: `boolean | FeatureOptions`
 - `expo`: `boolean | FeatureOptions`
-- `node`: `boolean | FeatureOptions & { preset?: "script" | "module" | "recommended" | "mixed"; version?: string }`
+- `node`: `boolean | (FeatureOptions & { preset?: "script" | "module" | "recommended" | "mixed"; version?: string })`
 - `target`: `"browser" | "node" | "both"`
 - `directories`: `{ web?: string | string[]; node?: string | string[]; mixed?: string | string[] }`
 - `ignores`: `string | string[]`
 - `rules`: `RulesConfig`
 
-`FeatureOptions`：
+`FeatureOptions`:
 
 - `enabled?: boolean`
 - `recommended?: boolean`
 - `extends?: string | config | (string | config)[]`
 - `rules?: RulesConfig`
 
-## 默认行为（开箱即用）
+`FeatureOptions` describes the shared shape above, not an exported type name. The package exports `NextFeatureOptions`, `ReactFeatureOptions`, `ExpoFeatureOptions`, and `NodeFeatureOptions` for the respective features. Omitting `enabled` keeps automatic detection; set `enabled: true` to enable a feature explicitly. `recommended` defaults to `true`. Setting it to `false` skips that feature's recommended presets, while the shared base configuration, package-specific rules, and custom `extends`/`rules` can still apply.
 
-1. 自动探测依赖  
-   检测到 `next` 时默认启用 Next；检测到 `expo` 时默认启用 Expo；检测到 `react`（或启用 Next/Expo）时默认启用 React。
-2. `target` 默认推断  
-   Next 项目默认 `"both"`；Expo 或 React 项目默认 `"browser"`；其他默认 `"node"`。
-3. Node 默认启用条件  
-   当 `target !== "browser"` 时默认启用 Node 规则。
-4. Node 默认版本  
-   目标项目未配置 `package.json.engines.node` 时，默认按 `>=24.0.0` 处理；可通过 `node.version` 覆盖。
-5. 目录默认值
-    - Next + both: `web = ["**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}"]`，`node = ["shared/**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}", "prisma/**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}", "server/**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}"]`。
-    - browser: `web = ["**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}"]`。
-    - node: `node = ["**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}"]`。
-    - both: `mixed = ["**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}"]`。
-6. 默认忽略目录  
-   `node_modules/**`, `out/**`, `build/**`, `dist/**`, `public/**`。
-7. Next 额外忽略  
-   `.next/**`, `next-env.d.ts`。
-8. Expo 默认行为
-   自动加载项目安装的 `eslint-config-expo`，保留 Expo 环境规则、Metro 配置和 `.android/.ios/.native/.web` 平台文件解析；启用 `eslint-plugin-react-native` 的全部规则，检查未使用、内联、硬编码颜色、顺序、平台拆分、原始文本和单元素数组等原生样式与渲染问题；允许 Expo 配置文件使用 CommonJS，并为未进入 tsconfig 的常见根级 TypeScript 配置文件提供 project-service 默认项目；同时忽略 `.expo/**`、顶层原生生成目录和嵌套原生构建输出。默认源码范围使用 `**/*`，不依赖 `src` 目录，支持根级 `app/**`、`modules/**` 和平铺源码。
-9. 目录冲突保护
-   同一个 glob 同时出现在 `web/node/mixed` 会直接报错。
-10. TypeScript 默认弃用检查
-    TypeScript 文件默认开启 `@typescript-eslint/no-deprecated`，并自动启用 `projectService`；JavaScript 与声明文件不会应用这条规则。
-11. 内联对象类型提示
-    默认对 `const info: { name: string } = { name: "tom" }`、`function getName({ name }: { name: string }) {}` 这类内联对象类型给出警告，建议先提取为 `type` 或 `interface`。
-12. 通用代码风格提示：默认以 warning 提示可保持不变的变量使用 `const`、字符串拼接使用模板字符串、无 `this` 依赖的回调使用箭头函数，并省略可安全省略的箭头函数体大括号。
-13. TypeScript 类型声明提示：对象类型声明建议使用 `interface`，类型名称使用 PascalCase；`enum` 会给出警告，建议改为 `as const` 对象和推导类型。
-14. React JSX 风格提示：React 项目默认以 warning 提示 Fragment 使用 `<Fragment>` 或 `<React.Fragment>` 的完整形式，并将无子节点的 JSX 元素写成自闭合标签；组件可以根据需要使用函数声明或箭头函数。
+`node.preset` defaults to `"script"`; `"module"`, `"recommended"`, and `"mixed"` select the corresponding Node presets. Runtime globals follow the resolved directory scopes independently of whether the Node rule feature is enabled.
 
-## 示例
+## Default Behavior
 
-### 1) Expo/React Native 平铺项目
+1. **Dependency detection**:
+   Next is enabled when `next` is detected; Expo is enabled when `expo` is detected; React is enabled when `react` is detected or Next/Expo is enabled.
+2. **Default `target`**:
+   Next projects use `"both"`; Expo or React projects use `"browser"`; other projects use `"node"`.
+3. **Default Node enablement**:
+   Node rules are enabled when `target !== "browser"`.
+4. **Default Node version**:
+   Defaults to `>=24.0.0`, overridable with `node.version`. The implementation does not automatically read the project's `package.json.engines.node`.
+5. Default directories
+    - Next + both: `web = ["**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}"]`; `node = ["shared/**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}", "prisma/**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}", "server/**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}"]`.
+    - browser: `web = ["**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}"]`.
+    - node: `node = ["**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}"]`.
+    - both: `mixed = ["**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}"]`.
+6. **Default ignored directories**:
+   `node_modules/**`, `out/**`, `build/**`, `dist/**`, `public/**`.
+7. **Additional Next ignores**:
+   `.next/**`, `next-env.d.ts`.
+8. **Expo behavior**:
+   Loads the project's installed `eslint-config-expo`, retaining Expo environment rules, Metro configuration, and `.android/.ios/.native/.web` platform resolution. Enables all `eslint-plugin-react-native` rules to check unused and inline styles, literal colors, style ordering, platform separation, raw text, and single-element style arrays. Allows CommonJS in Expo configuration files and provides project-service default projects for common root-level TypeScript configuration files outside the tsconfig. Ignores `.expo/**`, top-level generated native directories, and nested native build outputs. Source patterns use `**/*`, supporting root-level `app/**`, `modules/**`, and flat source layouts without requiring `src`.
+9. **Directory conflict protection**:
+   A glob appearing in more than one of `web/node/mixed` causes an error.
+10. **TypeScript deprecation checks**:
+    Enables `@typescript-eslint/no-deprecated` and `projectService` for TypeScript files by default. This rule does not apply to JavaScript or declaration files.
+11. **Inline object types**:
+    Warns on inline object types such as `const info: { name: string } = { name: "tom" }` and `function getName({ name }: { name: string }) {}`, suggesting extraction to a `type` or `interface`.
+12. General style warnings: prefer `const` for variables that do not change, template literals for string concatenation, arrow callbacks without a `this` dependency, and concise arrow bodies when safe.
+13. TypeScript declaration warnings: prefer `interface` for object types and PascalCase for type names. Warns on `enum`, suggesting an `as const` object with an inferred type.
+14. React JSX style warnings: prefer full `<Fragment>` or `<React.Fragment>` syntax and self-closing JSX elements without children. Components can use either function declarations or arrow functions.
 
-安装与当前 Expo SDK 匹配的 `eslint-config-expo` 后，根目录的 `eslint.config.mjs` 只需：
+## Directory and Rule Overrides
+
+Omitted `directories` fields retain the inferred defaults; an explicit `[]` clears that field. If all three fields are empty, the configuration falls back to a mixed scope covering all supported files. The automatic Next browser/Node split applies only when no directory fields are overridden. When providing custom scopes, choose patterns for the intended separation: the conflict check rejects identical glob strings, not every possible overlap between different patterns.
+
+Global `rules` override shared default rules. Runtime-specific defaults are applied afterward, followed by feature-level `rules`: browser scopes use Next, React, then Expo overrides; Node scopes use Node overrides; mixed scopes combine those and apply Node overrides last. Put a runtime-specific override in that feature's `rules` when it must take precedence.
+
+The default type-aware TypeScript rule requires a usable `tsconfig.json` covering the files being linted. Expo additionally permits the documented root-level configuration files through its default project. Setting `rules: { "@typescript-eslint/no-deprecated": "off" }` disables the rule unless an applicable feature override enables it again, but does not automatically disable `projectService`; the project configuration is still required.
+
+## Exports
+
+- Default export and named export `config`: the automatically detected flat configuration.
+- `defineConfig(params)`: creates a custom flat configuration.
+- Types: `DefineConfigParams`, `RuntimeDirectories`, `NodePreset`, `NextFeatureOptions`, `ReactFeatureOptions`, `ExpoFeatureOptions`, and `NodeFeatureOptions`.
+- Runtime entries are available as ESM and CommonJS.
+
+## Examples
+
+### 1) Flat Expo/React Native Project
+
+After installing an `eslint-config-expo` version matching the Expo SDK, the root `eslint.config.mjs` only needs:
 
 ```js
 export { default } from "@1adybug/eslint"
 ```
 
-该配置会覆盖根级 `app/**`、`modules/**` 和其他 JavaScript/TypeScript 文件，无需保留 `src` 目录。
+The configuration covers root-level `app/**`, `modules/**`, and other JavaScript/TypeScript files without requiring a `src` directory.
 
-如果项目使用自定义文本组件，通过 Expo 规则配置精确加入白名单，不要跳过会同时承载图标和文本的容器组件：
+For custom text components, add precise entries to the Expo rule's allowlist rather than skipping containers that can contain both icons and text:
 
 ```js
 import { defineConfig } from "@1adybug/eslint"
@@ -120,7 +151,7 @@ export default defineConfig({
 })
 ```
 
-### 2) Next 全栈项目（目录分区）
+### 2) Full-stack Next Project with Directory Scopes
 
 ```js
 import { defineConfig } from "@1adybug/eslint"
@@ -137,7 +168,7 @@ export default defineConfig({
 })
 ```
 
-### 3) 纯 React 项目（关闭 Node 规则）
+### 3) React-only Project with Node Rules Disabled
 
 ```js
 import { defineConfig } from "@1adybug/eslint"
@@ -149,7 +180,7 @@ export default defineConfig({
 })
 ```
 
-### 4) 纯 Node 库
+### 4) Node-only Library
 
 ```js
 import { defineConfig } from "@1adybug/eslint"
@@ -169,9 +200,9 @@ export default defineConfig({
 })
 ```
 
-## Monorepo 使用
+## Monorepo Usage
 
-### 1) 根目录统一配置（规则基本一致时）
+### 1) Shared Root Configuration for Similar Rules
 
 ```js
 import { defineConfig } from "@1adybug/eslint"
@@ -189,27 +220,30 @@ export default defineConfig({
 })
 ```
 
-注意：
+Notes:
 
-1. 同一个 glob 不能同时出现在 `web/node/mixed`，否则会报错。
-2. `next: true` 时，Next 规则会应用到 `web + mixed` 目录。
+1. The same glob must not appear in more than one of `web/node/mixed`.
+2. With `next: true`, Next rules apply to `web + mixed` directories.
 
-### 2) 根配置 + 子项目配置（只有部分应用是 Next 时）
+### 2) Root and Per-project Configurations When Only Some Apps Use Next
 
-建议做法：
+Recommended setup:
 
-1. 根目录配置通用规则，`next: false`。
-2. `apps/web` 单独 `eslint.config.mjs` 开启 `next: true`。
-3. `apps/api` 单独配置 `node` 规则。
+1. Configure common rules at the root with `next: false`.
+2. Enable `next: true` in a separate `apps/web/eslint.config.mjs`.
+3. Configure Node rules separately in `apps/api`.
 
-这样可以避免把 Next 规则应用到非 Next 项目。
+This keeps Next rules scoped to Next projects.
 
-## 本仓库开发命令
+## Development
+
+Install dependencies from the repository root first. See the [root README](../../README.md#development) for prerequisites.
 
 ```bash
-nub run build
-nub run dev
-nub run test
-nub run test:types
-nub run test:coverage
+pnpm --filter @1adybug/eslint run build
+pnpm --filter @1adybug/eslint run check
+pnpm --filter @1adybug/eslint run test
+pnpm --filter @1adybug/eslint run test:types
+pnpm --filter @1adybug/eslint run test:coverage
+pnpm --filter @1adybug/eslint run dev
 ```

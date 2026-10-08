@@ -1,676 +1,224 @@
-# Prettier Plugin Sort Imports
+# @1adybug/prettier-plugin-sort-imports
 
-[中文文档](https://github.com/1adybug/prettier-plugin-sort-imports/blob/main/README.zh-CN.md)
+> **Notice: This project is implemented entirely by AI coding tools.**
 
-A powerful Prettier plugin for intelligently grouping and sorting import statements in JavaScript/TypeScript files.
+[中文文档](./README.zh-CN.md)
 
-## Features
+A Prettier plugin for grouping, sorting, and merging JavaScript/TypeScript imports and source-bearing re-exports, with optional unused-import removal and type-only import handling.
 
-- ✅ **Smart Sorting**: Support for sorting both import modules and import contents
-- ✅ **Flexible Grouping**: Customizable grouping rules based on module type, path, etc.
-- ✅ **TypeScript Support**: Full support for TypeScript `type` imports
-- ✅ **Comment Preservation**: Comments follow their associated import statements
-- ✅ **Side Effect Handling**: Configurable sorting behavior for side effect imports
-- ✅ **Unused Import Removal**: Optional automatic removal of unused imports
-- ✅ **Factory Function Pattern**: Support for custom functions in configuration files
-- ✅ **Tailwind CSS Integration**: Compatible with `prettier-plugin-tailwindcss`
-
-## Quick Start
-
-### Installation
+## Installation
 
 ```bash
-npm install @1adybug/prettier-plugin-sort-imports --save-dev
+pnpm add -D prettier @1adybug/prettier-plugin-sort-imports
 ```
 
-### Basic Configuration
+Requires Prettier `^3.8.0`. Supported parsers: `babel`, `babel-ts`, and `typescript`. The package is ESM.
 
-Add the plugin to your `prettier.config.mjs`:
+## Usage
 
-```javascript
+Create `prettier.config.mjs`:
+
+```js
 export default {
     plugins: ["@1adybug/prettier-plugin-sort-imports"],
+    semi: false,
+    tabWidth: 4,
+    sortSideEffect: false,
+    removeUnusedImports: false,
+    markTypeOnlyImports: false,
+    mergeTypeImports: true,
+    nodeProtocol: "add",
 }
 ```
 
-### Usage
-
 ```bash
-npx prettier --write "src/**/*.{js,ts,jsx,tsx}"
+pnpm exec prettier --write "src/**/*.{js,jsx,ts,tsx}"
 ```
 
-## Usage Examples
+`nodeProtocol: "add"` is explicitly enabled in this example; its default is no change.
 
-### Basic Sorting
+## Default Sorting
 
-```typescript
-import "./styles.css"
+Before:
+
+```ts
+import { z, a } from "./z"
+import value from "pkg"
+import { b } from "@/alias"
+console.log(value, a, z, b)
 ```
 
-### Custom Grouping and Sorting
+After (default plugin options, `semi: false`):
 
-```javascript
-// prettier.config.mjs
+```ts
+import value from "pkg"
+import { b } from "@/alias"
+import { a, z } from "./z"
+
+console.log(value, a, z, b)
+```
+
+The default path order is external modules, aliases/absolute paths (`@/`, `~/`, `#/`, `/`), then relative paths. Paths are sorted alphabetically within each category. Named contents are sorted by explicit type markers, then local names (aliases when present). Compatible declarations from the same module are merged; merging separate declarations can retain their merge order rather than re-sort all combined contents.
+
+Default and namespace imports are printed in the positions required by module syntax. A custom `sortImportContent` changes content ordering, not those syntax constraints.
+
+## Options
+
+The following options can be set directly in a Prettier configuration or passed to `createPlugin`:
+
+| Option                | Default     | Behavior                                                       |
+| --------------------- | ----------- | -------------------------------------------------------------- |
+| `sortSideEffect`      | `false`     | Include side-effect imports in sorting when enabled            |
+| `removeUnusedImports` | `false`     | Remove imports unused in the current file                      |
+| `markTypeOnlyImports` | `false`     | Mark named imports used only in type positions                 |
+| `mergeTypeImports`    | `true`      | Print all-type named contents as `import type` / `export type` |
+| `nodeProtocol`        | `undefined` | `"add"` or `"remove"` the `node:` prefix on built-in modules   |
+| `groupSeparator`      | `undefined` | Insert a separator when custom groups are used                 |
+
+### Type-only Imports
+
+Before:
+
+```ts
+import { User } from "./types"
+export type Account = User
+```
+
+After (`markTypeOnlyImports: true`, `semi: false`):
+
+```ts
+import type { User } from "./types"
+
+export type Account = User
+```
+
+With `mergeTypeImports: false`, the import is printed as `import { type User } from "./types"` instead. Marking type-only imports uses the current file's AST, not the TypeScript type checker. It does not convert default imports, namespace imports, side-effect imports, or re-exports. Runtime references remain value imports.
+
+### Unused Imports
+
+`removeUnusedImports: true` analyzes references in the current file, including supported JSX and TypeScript uses. Side-effect imports and re-export statements are preserved. The analysis does not resolve types across files; see the safety limits below.
+
+### Side-effect Imports
+
+By default, side-effect imports act as barriers: ordinary imports are sorted within the sections between them, and are not moved across those barriers.
+
+Input and default output (`semi: false`):
+
+```ts
+import "./z.css"
+import "./a.css"
+```
+
+Output with `sortSideEffect: true`:
+
+```ts
+import "./a.css"
+import "./z.css"
+```
+
+Enabling this option can change module evaluation order.
+
+### Group Separators
+
+Separators apply when `getGroup` is provided. `undefined` adds no separator; `""` adds one blank line between groups. A nonempty string adds a blank line followed by that string, for example `"// external modules"`. A callback receives `(group, index)` and can return a string or `undefined`; it is not called before the first group.
+
+Use `""` for a blank line, rather than `"\n"`.
+
+## Custom Grouping and Sorting
+
+Use `createPlugin` in a JavaScript configuration for callbacks. The factory accepts `getGroup`, `sortGroup`, `sortImportStatement`, `sortImportContent`, and a function-valued `groupSeparator`; these callbacks are not registered as ordinary Prettier options.
+
+```js
 import { createPlugin } from "@1adybug/prettier-plugin-sort-imports"
 
 export default {
     plugins: [
         createPlugin({
-            // Custom grouping: group by module type
             getGroup: statement => {
-                if (statement.path.startsWith("react")) return "react"
-                if (!statement.path.startsWith(".")) return "external"
-                return "local"
-            },
-            // Specify group order
-            sortGroup: (a, b) => {
-                const order = ["react", "external", "local"]
-
-                return order.indexOf(a.name) - order.indexOf(b.name)
-            },
-            // Add blank lines between groups
-            groupSeparator: "",
-        }),
-    ],
-}
-```
-
-Result:
-
-```typescript
-import "./styles.css"
-```
-
-## API Documentation
-
-### Type Definitions
-
-#### ImportContent
-
-Definition of import content:
-
-```typescript
-interface ImportContent {
-    /** Name of the imported content */
-    name: string
-    /** Alias of the imported content */
-    alias?: string
-    /** Type of the imported content, only explicitly marked type imports belong to type */
-    type: "type" | "variable"
-}
-```
-
-#### ImportStatement
-
-Definition of import statement:
-
-```typescript
-interface ImportStatement {
-    /** Module path of the import, can be relative or absolute */
-    path: string
-    /** Whether it's an export statement, defaults to false */
-    isExport: boolean
-    /** Whether it's a side effect import, defaults to false */
-    isSideEffect: boolean
-    /** Import contents */
-    importContents: ImportContent[]
-}
-```
-
-#### Group
-
-Group definition:
-
-```typescript
-interface Group {
-    /** Group name, defaults to "default" */
-    name: string
-    /** Whether it's a side effect group, defaults to false */
-    isSideEffect: boolean
-    /** List of import statements in the group */
-    importStatements: ImportStatement[]
-}
-```
-
-#### PluginConfig
-
-Plugin configuration:
-
-```typescript
-interface PluginConfig {
-    /** Custom grouping function */
-    getGroup?: (importStatement: ImportStatement) => string
-    /** Custom group sorting function */
-    sortGroup?: (a: Group, b: Group) => number
-    /** Custom import statement sorting function */
-    sortImportStatement?: (a: ImportStatement, b: ImportStatement) => number
-    /** Custom import content sorting function */
-    sortImportContent?: (a: ImportContent, b: ImportContent) => number
-    /** Separator between groups */
-    groupSeparator?: string | ((group: Group, index: number) => string | undefined)
-    /** Whether to sort side effect imports, defaults to false */
-    sortSideEffect?: boolean
-    /** Whether to remove unused imports, defaults to false */
-    removeUnusedImports?: boolean
-    /** Whether to mark named imports used only in type positions as type-only imports, defaults to false */
-    markTypeOnlyImports?: boolean
-    /** Whether to merge all-type named imports into import type/export type declarations, defaults to true */
-    mergeTypeImports?: boolean
-    /** Whether to add/remove the node: prefix for Node.js builtin modules */
-    nodeProtocol?: "add" | "remove"
-}
-```
-
-## Configuration Options
-
-### Method 1: Simple Configuration
-
-Use the default plugin with basic options:
-
-```javascript
-export default {
-    plugins: ["@1adybug/prettier-plugin-sort-imports"],
-    sortSideEffect: false, // Whether to sort side effect imports
-    groupSeparator: "", // Group separator
-    removeUnusedImports: false, // Whether to remove unused imports
-    markTypeOnlyImports: false, // Whether to add type markers for type-only usages
-    mergeTypeImports: true, // Whether to prefer import type { A, B }
-    nodeProtocol: "add", // "add" to add node: prefix ("remove" to remove)
-}
-```
-
-### Method 2: Advanced Configuration
-
-Use `createPlugin` function for full control and plugin compatibility:
-
-```javascript
-import { createPlugin } from "@1adybug/prettier-plugin-sort-imports"
-
-export default {
-    plugins: [
-        createPlugin({
-            // Custom sorting functions
-            getGroup: statement => {
-                if (statement.path.startsWith("react")) return "react"
+                if (/^react(?:-dom)?(?:\/|$)/.test(statement.path)) return "react"
                 if (!statement.path.startsWith(".")) return "external"
                 return "local"
             },
             sortGroup: (a, b) => {
                 const order = ["react", "external", "local"]
-
                 return order.indexOf(a.name) - order.indexOf(b.name)
             },
             sortImportStatement: (a, b) => a.path.localeCompare(b.path),
-            sortImportContent: (a, b) => a.name.localeCompare(b.name),
-
-            // Configuration
-            groupSeparator: "\n",
-            sortSideEffect: true,
-            removeUnusedImports: false,
-            markTypeOnlyImports: false,
-            mergeTypeImports: true,
-            nodeProtocol: "add",
+            sortImportContent: (a, b) => (a.alias ?? a.name).localeCompare(b.alias ?? b.name),
+            groupSeparator: "",
         }),
     ],
-}
-```
-
-### Method 3: Custom Plugin Module
-
-Create a custom plugin module for better organization and reusability:
-
-**Step 1**: Create a custom plugin file `prettier-plugin-sort-imports.mjs`:
-
-```javascript
-// prettier-plugin-sort-imports.mjs
-import { createPlugin } from "@1adybug/prettier-plugin-sort-imports"
-
-export default createPlugin({
-    // Custom grouping logic
-    getGroup: statement => {
-        const path = statement.path
-
-        // React and related libraries
-        if (path.startsWith("react") || path.startsWith("@react")) return "react"
-
-        // UI libraries
-        if (path.includes("antd") || path.includes("@mui") || path.includes("chakra")) return "ui"
-
-        // Utility libraries
-        if (path.includes("lodash") || path.includes("ramda") || path.includes("date-fns")) return "utils"
-
-        // External packages (node_modules)
-        if (!path.startsWith(".") && !path.startsWith("@/")) return "external"
-
-        // Internal aliases (@/)
-        if (path.startsWith("@/")) return "internal"
-
-        // Relative imports
-        return "relative"
-    },
-
-    // Define group order
-    sortGroup: (a, b) => {
-        const order = ["react", "external", "ui", "utils", "internal", "relative"]
-
-        return order.indexOf(a.name) - order.indexOf(b.name)
-    },
-
-    // Custom import content sorting
-    sortImportContent: (a, b) => {
-        // Types first, then variables
-        if (a.type !== b.type) return a.type === "type" ? -1 : 1
-
-        // Alphabetical order within same type
-        const aName = a.alias ?? a.name
-        const bName = b.alias ?? b.name
-        return aName.localeCompare(bName)
-    },
-
-    // Add blank lines between groups
-    groupSeparator: "\n",
-
-    // Sort side effects
-    sortSideEffect: true,
-})
-```
-
-**Step 2**: Use the custom plugin in your `prettier.config.mjs`:
-
-```javascript
-// prettier.config.mjs
-export default {
-    plugins: ["./prettier-plugin-sort-imports.mjs"],
-    // Other prettier options...
     semi: false,
     tabWidth: 4,
 }
 ```
 
-**Benefits of this approach**:
+`getGroup` receives an `ImportStatement`, sorting callbacks receive two corresponding records, and `groupSeparator` receives a `Group` and its index. The exported `ImportStatement` and `Group` types include `filepath`, `isExport`, and `isSideEffect`. `PluginConfig`, these record types, and callback types are exported from the package; see [src/types.ts](./src/types.ts) for their full definitions.
 
-- ✅ **Reusable**: Share the same configuration across multiple projects
-- ✅ **Version Control**: Track your import sorting rules in git
-- ✅ **Maintainable**: Keep complex logic separate from prettier config
-- ✅ **Team Collaboration**: Consistent import sorting rules across team members
+Factory options take precedence over equivalent top-level Prettier options. For example, `createPlugin({ sortSideEffect: true })` takes precedence over `sortSideEffect: false` in the enclosing configuration.
 
-### Method 4: Plugin Compatibility
+For a reusable configuration, export the result of `createPlugin(...)` from a local `.mjs` file and reference that file in `plugins`.
 
-Use `createPlugin` with `otherPlugins` to merge with other Prettier plugins and avoid conflicts:
+## Combining Plugins
 
-```javascript
+Use `otherPlugins` to compose parser/printer plugins instead of assuming that a `plugins` array will chain their parsers. The array accepts imported plugin objects, not package-name strings.
+
+For Tailwind CSS:
+
+```bash
+pnpm add -D prettier-plugin-tailwindcss
+```
+
+```js
 import { createPlugin } from "@1adybug/prettier-plugin-sort-imports"
-import * as tailwindPlugin from "prettier-plugin-tailwindcss"
+import * as tailwindcss from "prettier-plugin-tailwindcss"
 
 export default {
+    semi: false,
+    tabWidth: 4,
     plugins: [
         createPlugin({
-            // Your import sorting configuration
-            getGroup: statement => {
-                if (statement.path.startsWith("react")) return "react"
-                if (!statement.path.startsWith(".")) return "external"
-                return "local"
-            },
-            groupSeparator: "\n",
-
-            // Other Prettier plugins to combine with (Plugin objects only)
-            otherPlugins: [
-                tailwindPlugin, // Import the plugin directly
-                // Add more plugins as needed...
-            ],
-
-            // Configuration options for other plugins
+            otherPlugins: [tailwindcss],
             prettierOptions: {
-                // TailwindCSS plugin options
-                tailwindConfig: "./tailwind.config.js",
-                tailwindFunctions: ["clsx", "cn", "cva"],
-                tailwindAttributes: ["class", "className", "ngClass", ":class"],
-
-                // Other plugin options can go here...
+                tailwindFunctions: ["clsx", "cn"],
             },
         }),
     ],
 }
 ```
 
-**Important Notes:**
+Import preprocessing runs first, followed by composed parser preprocessors in `otherPlugins` order. The composed parser and available AST transforms then run before printing. `prettierOptions` is forwarded to the other parsers; place printer-specific options in the top-level Prettier configuration. The `@1adybug/prettier` package provides the repository's [built-in combination](../prettier/README.md).
 
-- `otherPlugins` only accepts imported Plugin objects, not string plugin names
-- You must import the plugins yourself to ensure proper module resolution
-- This approach avoids complex module loading issues and gives you full control
+Composition does not chain every plugin's `parse` method. It selects the first custom parser without an AST-transform hook, or the official parser when none is available, then runs the collected `__transformAST` hooks. Printer definitions with the same name are replaced by later entries in `otherPlugins`. Additional language parsers outside `babel`, `babel-ts`, and `typescript` are not merged.
 
-**Plugin Execution Order:**
+## Exports
 
-- Other plugins are executed in the order they appear in the `otherPlugins` array
-- Import sorting is always executed last to ensure compatibility
+- Default export: the plugin with default import-sorting configuration.
+- `createPlugin(config)`: creates a plugin with factory options and optional composition.
+- Types: `Options` for Prettier configuration, `PluginConfig` for factory configuration, and the import/group records and callback types defined in [src/types.ts](./src/types.ts).
 
-**Configuration Passing:**
+## Scope and Safety Limits
 
-- Options in `prettierOptions` are passed to all other plugins
-- This allows other plugins to receive their configuration even when merged
+- Collects supported top-level imports and source-bearing re-exports throughout a file, including declarations after other statements, and gathers them at the first collected declaration.
+- Supports the parsers listed above and their usual `.js`, `.jsx`, `.mjs`, `.cjs`, `.ts`, `.tsx`, `.mts`, and `.cts` files. Does not rewrite CommonJS `require` calls or dynamic imports.
+- If a file contains syntax the normalized import model cannot preserve, import rewriting is skipped for the whole file. This includes import attributes/assertions, type-only default/namespace imports, type-only star exports, string-named specifiers, namespace re-exports, empty named imports, and unsupported inline import comments. Composed plugins can still run.
+- `markTypeOnlyImports` is skipped in decorated files because imports can affect decorator metadata. TypeScript namespace, enum initializer, parameter property, export assignment, and import-equals runtime references remain value uses.
+- `removeUnusedImports` is skipped when JSDoc type tags are present because the current AST analysis cannot resolve their references losslessly.
+- Supported attached comments move with their declarations or named contents. Namespace imports and incompatible default imports remain separate rather than being merged unsafely.
 
-### removeUnusedImports
+## Development
 
-Whether to remove unused imports, defaults to `false`.
+Install dependencies from the monorepo root. See the [root README](../../README.md#development) for prerequisites.
 
-**Default behavior (false)**: Keeps all imports.
-
-**When enabled (true)**: Automatically analyzes code and removes unused imports.
-
-```tsx
-// Before sorting
-// After sorting (with removeUnusedImports enabled)
-import React, { useState } from "react"
-
-import { Button } from "antd"
-
-function MyComponent() {
-    const [count, setCount] = useState(0)
-    return <Button>Click me</Button>
-}
-
-function MyComponent() {
-    const [count, setCount] = useState(0)
-    return <Button>Click me</Button>
-}
+```bash
+pnpm --filter @1adybug/prettier-plugin-sort-imports run build
+pnpm --filter @1adybug/prettier-plugin-sort-imports run check
+pnpm --filter @1adybug/prettier-plugin-sort-imports run test
+pnpm --filter @1adybug/prettier-plugin-sort-imports run test:watch
+pnpm --filter @1adybug/prettier-plugin-sort-imports run dev
 ```
 
-**Notes**:
-
-- Side effect imports (e.g., `import "./styles.css"`) will not be removed
-- Export statements (e.g., `export { x } from "module"`) will not be removed
-- Analysis is AST-based and identifies actually used identifiers in code
-- Supports identifying JSX components, TypeScript type references, etc.
-
-### markTypeOnlyImports
-
-Whether to mark named imports used only in type positions as type-only imports. Defaults to `false`.
-
-```ts
-// Before
-import { a } from "./a"
-
-export type A = typeof a
-
-// After
-import type { a } from "./a"
-
-export type A = typeof a
-```
-
-This is based on the current file's AST and does not use the TypeScript type checker. Default imports, namespace imports, side effect imports, and re-export declarations are not converted by this option.
-
-### mergeTypeImports
-
-Whether to merge all-type named imports into `import type`/`export type` declarations. Defaults to `true`.
-
-```ts
-// mergeTypeImports: true
-import type { A, B } from "./a"
-
-// mergeTypeImports: false
-import { type A, type B } from "./a"
-```
-
-### nodeProtocol
-
-Whether to add/remove the `node:` prefix for Node.js builtin modules. Defaults to `undefined` (no change).
-
-- `"add"`: add `node:` prefix
-- `"remove"`: remove `node:` prefix
-
-```ts
-// Before
-// nodeProtocol: "remove"
-import fs from "fs"
-// nodeProtocol: "add"
-import fs from "node:fs"
-import path from "node:path"
-import path from "path"
-```
-
-### sortSideEffect
-
-Whether to sort side effect imports, defaults to `false`.
-
-**Default behavior (false)**: Side effect imports act as separators, imports between separators are sorted independently.
-
-```typescript
-import "f-side-effect"
-import "f-side-effect"
-```
-
-**When enabled (true)**: Side effect imports also participate in sorting.
-
-```typescript
-import "f-side-effect"
-import "f-side-effect"
-```
-
-### Lossless safety fallbacks
-
-If a file contains import attributes/assertions, type-only star exports, string-named specifiers, namespace re-exports, or inline import comments that the normalized model cannot reproduce, import rewriting is skipped for that file. Other composed Prettier plugins still run. `markTypeOnlyImports` is also skipped in decorated files because changing an import can affect emitted decorator metadata. Runtime references inside TypeScript namespaces, enum initializers, parameter properties, export assignments, and import-equals aliases are treated as values. `removeUnusedImports` is skipped when JSDoc type tags are present because those references cannot be resolved losslessly by the current AST analysis.
-
-### groupSeparator
-
-Separator between groups, defaults to `undefined` (no separator).
-
-Can be a string or function:
-
-```javascript
-// String: add blank lines between all groups
-groupSeparator: ""
-
-// Function: flexible control
-groupSeparator: (group, index) => {
-    // No separator for the first group
-    if (index === 0) return undefined
-
-    // Add blank lines for other groups
-    return ""
-}
-```
-
-## Default Sorting Rules
-
-### Import Content Sorting
-
-**Default behavior** (when custom `sortImportContent` is not provided):
-
-1. Default imports always come first
-2. Namespace imports (`import * as`) come after default imports
-3. Named imports are sorted by `type` priority, then alphabetically by final import name
-
-```typescript
-
-```
-
-**Custom behavior**:
-
-If a custom `sortImportContent` function is provided, the plugin will **fully follow your sorting logic**:
-
-```javascript
-createPlugin({
-    // Fully alphabetical order, no distinction between type and variable
-    sortImportContent: (a, b) => {
-        const aName = a.alias ?? a.name
-        const bName = b.alias ?? b.name
-        return aName.localeCompare(bName)
-    },
-})
-```
-
-```typescript
-
-```
-
-### Import Statement Sorting
-
-Import statements are sorted alphabetically by module path:
-
-```typescript
-
-```
-
-### Comment Handling
-
-Comments follow the import statements they are attached to:
-
-```typescript
-
-```
-
-## Implementation Details
-
-### Core Modules
-
-#### 1. Type Definitions (`src/types.ts`)
-
-Defines all interface types: ImportContent, ImportStatement, Group, PluginConfig, and various function types.
-
-#### 2. Parser (`src/parser.ts`)
-
-Uses `@babel/parser` to parse source code and extract import/export statements:
-
-- Parse source code into AST
-- Traverse AST to find all import and export statements
-- Identify import types: default import, named import, namespace import, side effect import
-- Identify TypeScript `type` import markers
-- Extract and preserve comments above import statements
-- Record position information of import statements
-
-#### 3. Sorter (`src/sorter.ts`)
-
-Implements grouping and sorting logic:
-
-- Group import statements according to `getGroup` function
-- If `sortSideEffect` is false, treat side effect imports as separators
-- Use various sorting functions to sort groups, import statements, and import contents
-- Support fully customizable sorting logic
-
-#### 4. Formatter (`src/formatter.ts`)
-
-Converts sorted import statements back to code strings:
-
-- Generate corresponding import/export code from `ImportStatement`
-- Handle formatting of default imports, named imports, namespace imports
-- Handle `type` import formatting
-- Insert separators between groups according to `groupSeparator` configuration
-- Maintain comment associations
-
-#### 5. Plugin Entry (`src/index.ts`)
-
-Implements Prettier plugin standard interface:
-
-- Extends existing babel/typescript parsers
-- Supports factory function pattern
-- Integrates parser, sorter, formatter
-- Only processes consecutive import statement blocks at the beginning of files
-
-#### 6. Analyzer (`src/analyzer.ts`)
-
-Analyzes identifiers used in code and filters unused imports:
-
-- Uses `@babel/traverse` to traverse AST
-- Collects all identifiers used in code (variables, functions, JSX components, type references, etc.)
-- Filters import statements, keeping only import contents used in code
-- Supports identifying aliases, default imports, namespace imports, etc.
-
-### Tech Stack
-
-- **Build Tool**: rslib
-- **Parser**: @babel/parser
-- **AST Traversal**: @babel/traverse
-- **AST Types**: @babel/types
-- **Plugin System**: Prettier 3.x
-
-### Advantages of Factory Function Pattern
-
-Prettier natively cannot accept functions as configuration parameters (because configurations need to be serializable). This plugin cleverly solves this problem through the factory function pattern:
-
-```javascript
-// Factory function is called in config file, returning a plugin instance
-import { createPlugin } from "@1adybug/prettier-plugin-sort-imports"
-
-export default {
-    plugins: [
-        createPlugin({
-            // Can pass functions!
-            getGroup: statement => {
-                /* ... */
-            },
-        }),
-    ],
-}
-```
-
-This maintains configuration flexibility while not violating Prettier's configuration system limitations.
-
-## Integration with Other Plugins
-
-### Tailwind CSS
-
-This plugin works seamlessly with `prettier-plugin-tailwindcss`. For detailed setup instructions, see [TAILWINDCSS_INTEGRATION.md](./TAILWINDCSS_INTEGRATION.md).
-
-**Quick Setup:**
-
-```javascript
-// prettier.config.mjs
-export default {
-    plugins: [
-        "@1adybug/prettier-plugin-sort-imports",
-        "prettier-plugin-tailwindcss", // Must come last
-    ],
-    tailwindFunctions: ["clsx", "cn", "cva", "tw"],
-}
-```
-
-This will:
-
-- ✅ Sort and merge your imports
-- ✅ Sort your Tailwind CSS classes according to the recommended order
-
-## Notes
-
-1. **Only processes consecutive import/export statement blocks at the beginning of files**
-    - After encountering non-import/export statements, subsequent imports will not be processed
-
-2. **Supported File Types**
-    - JavaScript: `.js`, `.jsx`, `.mjs`, `.cjs`, `.mjsx`, `.cjsx`
-    - TypeScript: `.ts`, `.tsx`, `.mts`, `.cts`, `.mtsx`, `.ctsx`
-
-3. **Does not support CommonJS `require` statements**
-    - Only supports ES6 module syntax (import/export)
-
-4. **Custom Sorting Functions**
-    - When providing custom `sortImportContent`, the plugin will fully follow your logic
-    - Will not enforce rules like default imports first or types first
-
-## Project Status
-
-✅ **Complete and Ready to Use**
-
-All core features have been implemented and tested. The plugin works properly and can be integrated into any project using Prettier.
-
-### Verified Scenarios
-
-1. ✅ Basic import sorting (alphabetically)
-2. ✅ Side effect imports as separators
-3. ✅ Side effect import sorting (with option enabled)
-4. ✅ Comments follow import statements
-5. ✅ TypeScript type imports prioritized
-6. ✅ Default and namespace import positions
-7. ✅ Mixed imports (default + named)
-8. ✅ Import contents sorted by alias
-9. ✅ Custom sorting logic
-
-## Next Steps (Optional)
-
-1. Add unit tests (using Jest or Vitest)
-2. Add CI/CD configuration
-3. Publish to npm
-4. Add more examples
-5. Support more configuration options (e.g., ignoring specific imports)
+Report issues with a minimal input/output example in the [issue tracker](https://github.com/1adybug/prettier/issues).
 
 ## License
 

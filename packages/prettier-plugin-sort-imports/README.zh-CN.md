@@ -1,649 +1,225 @@
-# Prettier Plugin Sort Imports
+# @1adybug/prettier-plugin-sort-imports
 
-[English](https://github.com/1adybug/prettier-plugin-sort-imports/blob/main/README.md)
+> **声明：本项目完全由 AI 编码工具实现。**
 
-一个功能强大的 Prettier 插件，用于对 JavaScript/TypeScript 文件的导入语句进行智能分组和排序。
+[English](./README.md)
 
-## 特性
+为 JavaScript/TypeScript 导入及带模块来源的重新导出进行分组、排序和合并的 Prettier 插件，也支持可选的未使用导入删除与类型导入处理。
 
-- ✅ **智能排序**：支持对导入模块和导入内容进行排序
-- ✅ **灵活分组**：自定义分组规则，支持按模块类型、路径等分组
-- ✅ **TypeScript 支持**：完整支持 TypeScript 的 `type` 导入
-- ✅ **注释保留**：注释会跟随对应的导入语句移动
-- ✅ **副作用处理**：可配置副作用导入的排序行为
-- ✅ **未使用导入删除**：可选的自动删除未使用的导入功能
-- ✅ **工厂函数模式**：支持在配置文件中使用自定义函数
-
-## 快速开始
-
-### 安装
+## 安装
 
 ```bash
-npm install @1adybug/prettier-plugin-sort-imports --save-dev
+pnpm add -D prettier @1adybug/prettier-plugin-sort-imports
 ```
 
-### 基础配置
+需要 Prettier `^3.8.0`，支持 `babel`、`babel-ts` 和 `typescript` 解析器。该包为 ESM。
 
-在 `prettier.config.mjs` 中添加插件：
+## 使用
 
-```javascript
+创建 `prettier.config.mjs`：
+
+```js
 export default {
     plugins: ["@1adybug/prettier-plugin-sort-imports"],
+    semi: false,
+    tabWidth: 4,
+    sortSideEffect: false,
+    removeUnusedImports: false,
+    markTypeOnlyImports: false,
+    mergeTypeImports: true,
+    nodeProtocol: "add",
 }
 ```
 
-### 运行
-
 ```bash
-npx prettier --write "src/**/*.{js,ts,jsx,tsx}"
+pnpm exec prettier --write "src/**/*.{js,jsx,ts,tsx}"
 ```
 
-## 使用示例
+示例中显式开启了 `nodeProtocol: "add"`；此选项默认不修改前缀。
 
-### 基本排序
+## 默认排序
 
-```typescript
-import "./styles.css"
+格式化前：
+
+```ts
+import { z, a } from "./z"
+import value from "pkg"
+import { b } from "@/alias"
+console.log(value, a, z, b)
 ```
 
-### 自定义分组和排序
+格式化后（插件选项使用默认值，`semi: false`）：
 
-```javascript
-// prettier.config.mjs
+```ts
+import value from "pkg"
+import { b } from "@/alias"
+import { a, z } from "./z"
+
+console.log(value, a, z, b)
+```
+
+默认先排列外部模块，再排列别名/绝对路径（`@/`、`~/`、`#/`、`/`），最后排列相对路径；同类路径按字母顺序排序。命名内容优先排列显式类型标记，再按本地名称（存在别名时使用别名）排序。同模块的兼容声明会被合并；来自不同声明的内容合并后可能保留合并顺序，而不是重新排列所有内容。
+
+默认导入和命名空间导入始终按模块语法要求打印。自定义 `sortImportContent` 可以调整内容排序，但不会改变这些语法约束。
+
+## 选项
+
+以下选项可直接写在 Prettier 配置中，也可以传入 `createPlugin`：
+
+| 选项                  | 默认值      | 行为                                                     |
+| --------------------- | ----------- | -------------------------------------------------------- |
+| `sortSideEffect`      | `false`     | 开启后将副作用导入纳入排序                               |
+| `removeUnusedImports` | `false`     | 删除当前文件中未使用的导入                               |
+| `markTypeOnlyImports` | `false`     | 为仅在类型位置使用的命名导入添加类型标记                 |
+| `mergeTypeImports`    | `true`      | 将全为类型的命名内容打印为 `import type` / `export type` |
+| `nodeProtocol`        | `undefined` | 为内置模块 `"add"` 或 `"remove"` `node:` 前缀            |
+| `groupSeparator`      | `undefined` | 使用自定义分组时插入分隔符                               |
+
+### 类型导入
+
+格式化前：
+
+```ts
+import { User } from "./types"
+export type Account = User
+```
+
+格式化后（`markTypeOnlyImports: true`、`semi: false`）：
+
+```ts
+import type { User } from "./types"
+
+export type Account = User
+```
+
+设置 `mergeTypeImports: false` 后，导入改为 `import { type User } from "./types"`。自动类型标记基于当前文件 AST，不使用 TypeScript type checker，不转换默认导入、命名空间导入、副作用导入或重新导出。运行时引用仍保留值导入。
+
+### 未使用导入
+
+`removeUnusedImports: true` 会分析当前文件中的引用，包括支持的 JSX 和 TypeScript 用法。副作用导入与重新导出语句会被保留。分析不会跨文件解析类型，具体边界见下方限制。
+
+### 副作用导入
+
+默认情况下，副作用导入充当分隔边界：普通导入只在各边界之间的区段内排序，不会跨越边界移动。
+
+输入及默认输出（`semi: false`）：
+
+```ts
+import "./z.css"
+import "./a.css"
+```
+
+`sortSideEffect: true` 时的输出：
+
+```ts
+import "./a.css"
+import "./z.css"
+```
+
+开启此选项可能改变模块求值顺序。
+
+### 分组分隔符
+
+分隔符在配置 `getGroup` 时生效。`undefined` 不添加分隔符；`""` 在分组之间添加一行空行；非空字符串会在一行空行后输出该字符串，例如 `"// external modules"`。回调接收 `(group, index)`，可返回字符串或 `undefined`，不会在第一个分组前调用。
+
+需要一行空行时使用 `""`，不必使用 `"\n"`。
+
+## 自定义分组与排序
+
+需要回调时，在 JavaScript 配置中使用 `createPlugin`。工厂支持 `getGroup`、`sortGroup`、`sortImportStatement`、`sortImportContent` 和函数形式的 `groupSeparator`；这些回调没有注册为普通 Prettier 选项。
+
+```js
 import { createPlugin } from "@1adybug/prettier-plugin-sort-imports"
 
 export default {
     plugins: [
         createPlugin({
-            // 自定义分组：按模块类型分组
             getGroup: statement => {
-                if (statement.path.startsWith("react")) return "react"
+                if (/^react(?:-dom)?(?:\/|$)/.test(statement.path)) return "react"
                 if (!statement.path.startsWith(".")) return "external"
                 return "local"
             },
-            // 指定分组顺序
             sortGroup: (a, b) => {
                 const order = ["react", "external", "local"]
-
                 return order.indexOf(a.name) - order.indexOf(b.name)
             },
-            // 在分组之间添加空行
+            sortImportStatement: (a, b) => a.path.localeCompare(b.path),
+            sortImportContent: (a, b) => (a.alias ?? a.name).localeCompare(b.alias ?? b.name),
             groupSeparator: "",
         }),
     ],
-}
-```
-
-结果：
-
-```typescript
-import "./styles.css"
-```
-
-## API 文档
-
-### 类型定义
-
-#### ImportContent
-
-导入内容的定义：
-
-```typescript
-interface ImportContent {
-    /** 导入的内容的名称 */
-    name: string
-    /** 导入的内容的别名 */
-    alias?: string
-    /** 导入的内容的类型，只有明确在导入前加入了 type 标记的才属于 type 类型 */
-    type: "type" | "variable"
-}
-```
-
-#### ImportStatement
-
-导入语句的定义：
-
-```typescript
-interface ImportStatement {
-    /** 导入的模块路径，可以是相对路径或绝对路径 */
-    path: string
-    /** 是否是导出语句，默认为 false */
-    isExport: boolean
-    /** 是否是副作用导入，默认为 false */
-    isSideEffect: boolean
-    /** 导入的内容 */
-    importContents: ImportContent[]
-}
-```
-
-#### Group
-
-分组定义：
-
-```typescript
-interface Group {
-    /** 分组名称，默认为 default */
-    name: string
-    /** 是否是副作用分组，默认为 false */
-    isSideEffect: boolean
-    /** 分组对应的导入语句列表 */
-    importStatements: ImportStatement[]
-}
-```
-
-#### PluginConfig
-
-插件配置：
-
-```typescript
-interface PluginConfig {
-    /** 自定义分组函数 */
-    getGroup?: (importStatement: ImportStatement) => string
-    /** 自定义分组排序函数 */
-    sortGroup?: (a: Group, b: Group) => number
-    /** 自定义导入语句排序函数 */
-    sortImportStatement?: (a: ImportStatement, b: ImportStatement) => number
-    /** 自定义导入内容排序函数 */
-    sortImportContent?: (a: ImportContent, b: ImportContent) => number
-    /** 分组之间的分隔符 */
-    groupSeparator?: string | ((group: Group, index: number) => string | undefined)
-    /** 是否对副作用导入进行排序，默认为 false */
-    sortSideEffect?: boolean
-    /** 是否删除未使用的导入，默认为 false */
-    removeUnusedImports?: boolean
-    /** 是否将仅用于类型位置的命名导入标记为 type，默认为 false */
-    markTypeOnlyImports?: boolean
-    /** 是否将全为 type 的命名导入合并为 import type/export type，默认为 true */
-    mergeTypeImports?: boolean
-    /** 是否为 Node.js 内置模块自动添加/移除 node: 前缀 */
-    nodeProtocol?: "add" | "remove"
-}
-```
-
-## 配置选项
-
-### 方式 1：简单配置
-
-通过 Prettier 配置文件配置基本选项：
-
-```javascript
-export default {
-    plugins: ["@1adybug/prettier-plugin-sort-imports"],
-    sortSideEffect: false, // 是否对副作用导入排序
-    groupSeparator: "", // 分组分隔符
-    removeUnusedImports: false, // 是否删除未使用的导入
-    markTypeOnlyImports: false, // 是否为仅类型位置使用的命名导入添加 type 标记
-    mergeTypeImports: true, // 是否优先输出 import type { A, B }
-    nodeProtocol: "add", // "add" 为添加 node: 前缀（"remove" 为移除）
-}
-```
-
-### 方式 2：高级配置（工厂函数）
-
-使用 `createPlugin` 函数可以传递自定义函数：
-
-```javascript
-import { createPlugin } from "@1adybug/prettier-plugin-sort-imports"
-
-export default {
-    plugins: [
-        createPlugin({
-            getGroup: statement => {
-                /* 自定义分组逻辑 */
-            },
-            sortGroup: (a, b) => {
-                /* 自定义排序 */
-            },
-            sortImportStatement: (a, b) => {
-                /* 自定义排序 */
-            },
-            sortImportContent: (a, b) => {
-                /* 自定义排序 */
-            },
-            groupSeparator: "",
-            sortSideEffect: true,
-            removeUnusedImports: false,
-            markTypeOnlyImports: false,
-            mergeTypeImports: true,
-            nodeProtocol: "add",
-        }),
-    ],
-}
-```
-
-### 方式 3：自定义插件模块
-
-创建自定义插件模块以获得更好的组织性和可复用性：
-
-**步骤 1**：创建自定义插件文件 `prettier-plugin-sort-imports.mjs`：
-
-```javascript
-// prettier-plugin-sort-imports.mjs
-import { createPlugin } from "@1adybug/prettier-plugin-sort-imports"
-
-export default createPlugin({
-    // 自定义分组逻辑
-    getGroup: statement => {
-        const path = statement.path
-
-        // React 及相关库
-        if (path.startsWith("react") || path.startsWith("@react")) return "react"
-
-        // UI 库
-        if (path.includes("antd") || path.includes("@mui") || path.includes("chakra")) return "ui"
-
-        // 工具库
-        if (path.includes("lodash") || path.includes("ramda") || path.includes("date-fns")) return "utils"
-
-        // 外部包 (node_modules)
-        if (!path.startsWith(".") && !path.startsWith("@/")) return "external"
-
-        // 内部别名 (@/)
-        if (path.startsWith("@/")) return "internal"
-
-        // 相对导入
-        return "relative"
-    },
-
-    // 定义分组顺序
-    sortGroup: (a, b) => {
-        const order = ["react", "external", "ui", "utils", "internal", "relative"]
-
-        return order.indexOf(a.name) - order.indexOf(b.name)
-    },
-
-    // 自定义导入内容排序
-    sortImportContent: (a, b) => {
-        // 类型在前，变量在后
-        if (a.type !== b.type) return a.type === "type" ? -1 : 1
-
-        // 同类型内按字母顺序
-        const aName = a.alias ?? a.name
-        const bName = b.alias ?? b.name
-        return aName.localeCompare(bName)
-    },
-
-    // 在分组间添加空行
-    groupSeparator: "\n",
-
-    // 排序副作用导入
-    sortSideEffect: true,
-})
-```
-
-**步骤 2**：在 `prettier.config.mjs` 中使用自定义插件：
-
-```javascript
-// prettier.config.mjs
-export default {
-    plugins: ["./prettier-plugin-sort-imports.mjs"],
-    // 其他 prettier 选项...
     semi: false,
     tabWidth: 4,
 }
 ```
 
-**此方法的优点**：
+`getGroup` 接收 `ImportStatement`，排序回调接收两条对应记录，`groupSeparator` 接收 `Group` 及其索引。导出的 `ImportStatement` 和 `Group` 类型包含 `filepath`、`isExport` 和 `isSideEffect`。包也导出 `PluginConfig` 和回调类型，完整定义见 [src/types.ts](./src/types.ts)。
 
-- ✅ **可复用**：在多个项目间共享相同配置
-- ✅ **版本控制**：在 git 中跟踪你的导入排序规则
-- ✅ **易维护**：将复杂逻辑从 prettier 配置中分离
-- ✅ **团队协作**：团队成员间保持一致的导入排序规则
+工厂配置优先于对应的顶层 Prettier 选项。例如，`createPlugin({ sortSideEffect: true })` 优先于外层配置中的 `sortSideEffect: false`。
 
-### 方式 4：插件兼容性
+需要复用配置时，可以在本地 `.mjs` 文件中导出 `createPlugin(...)` 的结果，再将该文件加入 `plugins`。
 
-使用 `createPlugin` 的 `otherPlugins` 参数与其他 Prettier 插件合并，避免冲突：
+## 插件组合
 
-```javascript
+通过 `otherPlugins` 组合解析器/打印器插件，不能假定简单排列 `plugins` 就会串联各插件的解析器。该数组接受导入的插件对象，不接受包名字符串。
+
+与 Tailwind CSS 组合时，先安装对应插件：
+
+```bash
+pnpm add -D prettier-plugin-tailwindcss
+```
+
+```js
 import { createPlugin } from "@1adybug/prettier-plugin-sort-imports"
-import * as tailwindPlugin from "prettier-plugin-tailwindcss"
+import * as tailwindcss from "prettier-plugin-tailwindcss"
 
 export default {
+    semi: false,
+    tabWidth: 4,
     plugins: [
         createPlugin({
-            // 你的导入排序配置
-            getGroup: statement => {
-                if (statement.path.startsWith("react")) return "react"
-                if (!statement.path.startsWith(".")) return "external"
-                return "local"
-            },
-            groupSeparator: "\n",
-
-            // 要合并的其他 Prettier 插件（仅支持 Plugin 对象）
-            otherPlugins: [
-                tailwindPlugin, // 直接导入插件
-                // 根据需要添加更多插件...
-            ],
-
-            // 其他插件的配置选项
+            otherPlugins: [tailwindcss],
             prettierOptions: {
-                // TailwindCSS 插件选项
-                tailwindConfig: "./tailwind.config.js",
-                tailwindFunctions: ["clsx", "cn", "cva"],
-                tailwindAttributes: ["class", "className", "ngClass", ":class"],
-
-                // 其他插件选项可以在这里配置...
+                tailwindFunctions: ["clsx", "cn"],
             },
         }),
     ],
 }
 ```
 
-**重要说明**：
+导入预处理先执行，再按 `otherPlugins` 的顺序运行组合解析器的预处理；随后执行组合解析器和可用的 AST 转换，再进入打印阶段。`prettierOptions` 会传递给其他解析器，打印器专用选项应写在顶层 Prettier 配置中。`@1adybug/prettier` 提供本仓库的[内置组合](../prettier/README.zh-CN.md)。
 
-- `otherPlugins` 只接受导入的 Plugin 对象，不支持字符串插件名称
-- 你必须自己导入插件以确保正确的模块解析
-- 这种方法避免了复杂的模块加载问题，给你完全的控制权
+组合不会串联执行每个插件的 `parse` 方法，而是选择第一个不带 AST 转换钩子的自定义解析器；没有此类解析器时使用官方解析器，然后执行收集到的 `__transformAST` 钩子。同名打印器定义由 `otherPlugins` 中靠后的插件覆盖，`babel`、`babel-ts` 和 `typescript` 以外的语言解析器不会被合并。
 
-**插件执行顺序**：
+## 导出
 
-- 其他插件按照在 `otherPlugins` 数组中出现的顺序执行
-- 导入排序始终最后执行以确保兼容性
+- 默认导出：使用默认导入排序配置的插件。
+- `createPlugin(config)`：使用工厂配置及可选组合创建插件。
+- 类型：用于 Prettier 配置的 `Options`、用于工厂配置的 `PluginConfig`，以及 [src/types.ts](./src/types.ts) 定义的导入/分组记录和回调类型。
 
-**配置传递**：
+## 范围与安全限制
 
-- `prettierOptions` 中的选项会传递给所有其他插件
-- 这允许其他插件即使在合并时也能接收到它们的配置
+- 收集整个文件中支持的顶层导入和带模块来源的重新导出，包括出现在其他语句之后的声明，并将它们集中到第一条收集到的声明处。
+- 支持上面列出的解析器及其常见 `.js`、`.jsx`、`.mjs`、`.cjs`、`.ts`、`.tsx`、`.mts`、`.cts` 文件，不重写 CommonJS `require` 调用或动态导入。
+- 文件包含归一化导入模型无法保留的语法时，整份文件的导入重写会被跳过，包括 import attributes/assertions、仅类型的默认/命名空间导入、仅类型星号导出、字符串名称说明符、namespace re-export、空命名导入和不支持的行内导入注释。组合的其他插件仍可继续运行。
+- 带装饰器的文件会跳过 `markTypeOnlyImports`，避免影响装饰器元数据。TypeScript namespace、枚举初始化值、参数属性、export assignment 和 import-equals 中的运行时引用仍按值使用处理。
+- 存在 JSDoc 类型标签时，会跳过 `removeUnusedImports`，因为当前 AST 分析不能无损解析这些引用。
+- 支持的附加注释会随对应声明或命名内容移动。命名空间导入与不兼容的默认导入会保持分离，避免不安全的合并。
 
-### removeUnusedImports
+## 本仓库开发
 
-是否删除未使用的导入，默认为 `false`。
+在 monorepo 根目录安装依赖。环境要求见[根目录 README](../../README.zh-CN.md#开发)。
 
-**默认行为（false）**：保留所有导入。
-
-**开启后（true）**：自动分析代码并删除未使用的导入。
-
-```tsx
-// 排序前
-// 排序后（开启 removeUnusedImports）
-import React, { useState } from "react"
-
-import { Button } from "antd"
-
-function MyComponent() {
-    const [count, setCount] = useState(0)
-    return <Button>Click me</Button>
-}
-
-function MyComponent() {
-    const [count, setCount] = useState(0)
-    return <Button>Click me</Button>
-}
+```bash
+pnpm --filter @1adybug/prettier-plugin-sort-imports run build
+pnpm --filter @1adybug/prettier-plugin-sort-imports run check
+pnpm --filter @1adybug/prettier-plugin-sort-imports run test
+pnpm --filter @1adybug/prettier-plugin-sort-imports run test:watch
+pnpm --filter @1adybug/prettier-plugin-sort-imports run dev
 ```
 
-**注意事项**：
+请在[问题反馈](https://github.com/1adybug/prettier/issues)提交问题，并附上最小输入和期望输出。
 
-- 副作用导入（如 `import "./styles.css"`）不会被删除
-- 导出语句（如 `export { x } from "module"`）不会被删除
-- 分析基于 AST，会识别代码中实际使用的标识符
-- 支持识别 JSX 组件、TypeScript 类型引用等
-
-### markTypeOnlyImports
-
-是否将仅用于类型位置的命名导入标记为 type，默认为 `false`。
-
-```ts
-// 排序前
-import { a } from "./a"
-
-export type A = typeof a
-
-// 排序后
-import type { a } from "./a"
-
-export type A = typeof a
-```
-
-此功能只基于当前文件 AST，不使用 TypeScript type checker。默认导入、命名空间导入、副作用导入和 re-export 语句不会被此选项转换。
-
-### mergeTypeImports
-
-是否将全为 type 的命名导入合并为 `import type` / `export type` 声明，默认为 `true`。
-
-```ts
-// mergeTypeImports: true
-import type { A, B } from "./a"
-
-// mergeTypeImports: false
-import { type A, type B } from "./a"
-```
-
-### nodeProtocol
-
-是否为 Node.js 内置模块自动添加/移除 `node:` 前缀，默认为 `undefined`（不处理）。
-
-- `"add"`：自动添加 `node:` 前缀
-- `"remove"`：自动移除 `node:` 前缀
-
-```ts
-// 排序前
-// nodeProtocol: "remove"
-import fs from "fs"
-// nodeProtocol: "add"
-import fs from "node:fs"
-import path from "node:path"
-import path from "path"
-```
-
-### sortSideEffect
-
-是否对副作用导入进行排序，默认为 `false`。
-
-**默认行为（false）**：副作用导入作为分隔符，分隔符之间的导入独立排序。
-
-```typescript
-import "f-side-effect"
-import "f-side-effect"
-```
-
-**开启后（true）**：副作用导入也会参与排序。
-
-```typescript
-import "f-side-effect"
-import "f-side-effect"
-```
-
-### 无损安全降级
-
-当文件包含 import attributes/assertions、仅类型星号导出、字符串名称说明符、namespace re-export，或当前归一化模型无法还原的行内 import 注释时，插件会跳过该文件的 import 重写，但组合的其他 Prettier 插件仍会继续运行。由于修改导入可能影响装饰器元数据生成，带装饰器的文件也会跳过 `markTypeOnlyImports`。TypeScript namespace、枚举初始化值、参数属性、export assignment 和 import-equals 别名中的运行时引用会按值使用处理。检测到 JSDoc 类型标签时，由于当前 AST 分析无法无损解析其中的引用，插件会仅跳过 `removeUnusedImports`。
-
-### groupSeparator
-
-分组之间的分隔符，默认为 `undefined`（无分隔符）。
-
-可以是字符串或函数：
-
-```javascript
-// 字符串：在所有分组间添加空行
-groupSeparator: ""
-
-// 函数：灵活控制
-groupSeparator: (group, index) => {
-    // 第一个分组不添加分隔符
-    if (index === 0) return undefined
-
-    // 其他分组添加空行
-    return ""
-}
-```
-
-## 默认排序规则
-
-### 导入内容排序
-
-**默认行为**（未提供自定义 `sortImportContent` 时）：
-
-1. 默认导入始终在最前面
-2. 命名空间导入（`import * as`）在默认导入之后
-3. 命名导入按照 `type` 类型优先，然后按最终导入名称字母顺序排序
-
-```typescript
-
-```
-
-**自定义行为**：
-
-如果提供了自定义的 `sortImportContent` 函数，插件会**完全遵循你的排序逻辑**：
-
-```javascript
-createPlugin({
-    // 完全按字母顺序，不区分 type 和 variable
-    sortImportContent: (a, b) => {
-        const aName = a.alias ?? a.name
-        const bName = b.alias ?? b.name
-        return aName.localeCompare(bName)
-    },
-})
-```
-
-```typescript
-
-```
-
-### 导入语句排序
-
-导入语句按模块路径的字母顺序排序：
-
-```typescript
-
-```
-
-### 注释处理
-
-注释会跟随它们所附加的导入语句一起移动：
-
-```typescript
-
-```
-
-## 实现细节
-
-### 核心模块
-
-#### 1. 类型定义 (`src/types.ts`)
-
-定义所有接口类型：ImportContent、ImportStatement、Group、PluginConfig 和各种函数类型。
-
-#### 2. 解析器 (`src/parser.ts`)
-
-使用 `@babel/parser` 解析源代码，提取导入/导出语句：
-
-- 解析源代码为 AST
-- 遍历 AST 找到所有 import 和 export 语句
-- 识别导入类型：默认导入、命名导入、命名空间导入、副作用导入
-- 识别 TypeScript 的 `type` 导入标记
-- 提取并保留导入语句上方的注释
-- 记录导入语句的位置信息
-
-#### 3. 排序器 (`src/sorter.ts`)
-
-实现分组和排序逻辑：
-
-- 根据 `getGroup` 函数对导入语句进行分组
-- 如果 `sortSideEffect` 为 false，将副作用导入作为分隔符处理
-- 使用各种排序函数对分组、导入语句、导入内容进行排序
-- 支持完全自定义的排序逻辑
-
-#### 4. 格式化器 (`src/formatter.ts`)
-
-将排序后的导入语句转换回代码字符串：
-
-- 根据 `ImportStatement` 生成对应的 import/export 代码
-- 处理默认导入、命名导入、命名空间导入的格式
-- 处理 `type` 导入的格式
-- 根据 `groupSeparator` 配置在分组之间插入分隔符
-- 保持注释关联
-
-#### 5. 插件入口 (`src/index.ts`)
-
-实现 Prettier 插件标准接口：
-
-- 扩展现有的 babel/typescript 解析器
-- 支持工厂函数模式
-- 集成解析器、排序器、格式化器
-- 只处理文件开头的连续导入语句块
-
-#### 6. 分析器 (`src/analyzer.ts`)
-
-分析代码中使用的标识符并过滤未使用的导入：
-
-- 使用 `@babel/traverse` 遍历 AST
-- 收集代码中使用的所有标识符（变量、函数、JSX 组件、类型引用等）
-- 过滤导入语句，只保留在代码中使用的导入内容
-- 支持识别别名、默认导入、命名空间导入等
-
-### 技术栈
-
-- **构建工具**：rslib
-- **解析器**：@babel/parser
-- **AST 遍历**：@babel/traverse
-- **AST 类型**：@babel/types
-- **插件系统**：Prettier 3.x
-
-### 工厂函数模式的优势
-
-Prettier 原生无法接受函数作为配置参数（因为配置需要序列化）。本插件通过工厂函数模式巧妙地解决了这个问题：
-
-```javascript
-// 工厂函数在配置文件中被调用，返回一个插件实例
-import { createPlugin } from "@1adybug/prettier-plugin-sort-imports"
-
-export default {
-    plugins: [
-        createPlugin({
-            // 可以传递函数！
-            getGroup: statement => {
-                /* ... */
-            },
-        }),
-    ],
-}
-```
-
-这样既保持了配置的灵活性，又不违反 Prettier 的配置系统限制。
-
-## 注意事项
-
-1. **只处理文件开头的连续导入/导出语句块**
-    - 遇到非导入/导出语句后，后续的导入不会被处理
-
-2. **支持的文件类型**
-    - JavaScript：`.js`, `.jsx`, `.mjs`, `.cjs`, `.mjsx`, `.cjsx`
-    - TypeScript：`.ts`, `.tsx`, `.mts`, `.cts`, `.mtsx`, `.ctsx`
-
-3. **不支持 CommonJS 的 `require` 语句**
-    - 只支持 ES6 模块语法（import/export）
-
-4. **自定义排序函数**
-    - 提供自定义 `sortImportContent` 时，插件会完全遵循你的逻辑
-    - 不会强制默认导入在前或 type 在前等规则
-
-## 项目状态
-
-✅ **完成并可用**
-
-所有核心功能已实现并通过测试，插件可以正常工作并集成到任何使用 Prettier 的项目中。
-
-### 已验证场景
-
-1. ✅ 基本导入排序（按字母顺序）
-2. ✅ 副作用导入作为分隔符
-3. ✅ 副作用导入排序（开启选项）
-4. ✅ 注释跟随导入语句
-5. ✅ TypeScript type 导入优先
-6. ✅ 默认导入和命名空间导入位置
-7. ✅ 混合导入（默认 + 命名）
-8. ✅ 导入内容按 alias 排序
-9. ✅ 自定义排序逻辑
-
-## 下一步（可选）
-
-1. 添加单元测试（使用 Jest 或 Vitest）
-2. 添加 CI/CD 配置
-3. 发布到 npm
-4. 添加更多示例
-5. 支持更多配置选项（如忽略特定导入）
-
-## License
+## 许可证
 
 MIT

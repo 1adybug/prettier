@@ -1,22 +1,23 @@
-# prettier-plugin-block-padding
+# @1adybug/prettier-plugin-block-padding
 
-[English](https://github.com/1adybug/prettier-plugin-block-padding/blob/main/README.md)
+> **声明：本项目完全由 AI 编码工具实现。**
 
-**重要声明：本项目完全由 Cursor + Claude 4.5 Sonnet Thinking 生成**
+[English](./README.md)
 
-在不改变 Prettier 原有风格与换行决策的前提下，为特定语句在"语句之间"智能插入一个额外的空行，从而提升模块与语义块之间的视觉分组效果。插件基于 Prettier 3 的 estree 打印器按"语句序列"工作，支持所有代码块（包括函数体、if/for/while 等语句块），不会改写表达式内部的格式与缩进。
+为特定语句和类成员之间插入空行的 Prettier 插件。插件基于 Prettier 的 estree 打印器处理语句容器和分隔，表达式和对象属性内部的格式仍交由 Prettier 负责。
 
 ## 主要能力
 
 - **所有代码块的分组留白**：在文件顶层、函数体、if/for/while、TypeScript 命名空间及类静态初始化块内为特定语句前后插入一个额外空行（即两条换行分隔相邻语句），增强结构分隔。由于 switch case 的语句序列不是块语句，仍交由 Prettier 原生处理。
 - **多行表达式块智能识别**：自动识别并为模板字符串、函数表达式、类表达式、JSX 元素等跨多行的表达式块添加空行，提升代码可读性。
 - **TypeScript 命名空间支持**：在 `namespace`/`module`（`TSModuleBlock`）内部同样按上述规则处理成员语句，并保证花括号与首末行的换行正确。
-- **智能单行检测**：单行的对象、函数、模板字符串等不会触发额外空行（对象/数组字面量除外），避免过度分隔。
+- **类成员分隔**：为多行类成员添加空行，并分隔相邻的属性与方法，单行方法也适用。
+- **单行检测**：单行块和表达式通常不会触发额外空行；类型声明、对象/数组字面量及属性与方法的分隔规则除外。
 - **与官方解析器协作**：复用官方 `babel`、`babel-ts`、`typescript` 解析器，仅覆盖 estree 打印阶段的"语句拼接"，其它格式化交由 Prettier 负责。
 
 ## 行为细节
 
-在"所有代码块（BlockStatement）"中，包括文件顶层（Program）、函数体、if/for/while 等语句块以及 TypeScript 命名空间块（TSModuleBlock），插件会在以下情况为相邻语句之间增加一个额外空行：
+在语句容器（`Program`、`BlockStatement`、`TSModuleBlock`、`StaticBlock`）和类主体（`ClassBody`）中，插件会在以下情况为相邻语句或成员之间添加一行空行：
 
 ### 无条件添加空行（即使单行也添加）
 
@@ -43,8 +44,8 @@
 ### 严格遵循的约束
 
 - **不在容器边界外生成空行**：不会在文件首行之前或文件末尾之后额外添加空行。但是，如果文件首行或末行的语句符合上述规则（如对象字面量、类型声明、多行块状语句），它仍然会与相邻语句之间添加空行。
-- **仅在语句间加空行**：从不在单个语句内部改写格式，表达式、对象属性、函数体内的具体排版仍由 Prettier 决定。
-- **单行不触发空行**：当一个块/表达式最终被打印为单行（无换行）时，不会触发额外留白。
+- **语句与类成员之间的留白**：插件负责容器花括号与语句/成员之间的分隔；表达式和对象属性内部的格式仍交由 Prettier 处理。函数体等嵌套语句容器也会应用留白规则。
+- **单行规则的例外**：类型声明、对象/数组字面量，以及相邻的类属性与方法，即使为单行也可能触发空行。
 
 > 小结：插件始终保证"相邻语句之间至少一条换行"，当命中规则时再加一条换行形成一个视觉空行。
 
@@ -148,50 +149,60 @@ const b = 2
 ## 安装
 
 ```bash
-npm i -D prettier-plugin-block-padding
+pnpm add -D prettier @1adybug/prettier-plugin-block-padding
 ```
 
 ## 使用
 
-将插件加入 Prettier 配置（**建议置于 `plugins` 数组靠后位置**，以确保自定义 estree 打印器生效）：
+创建 `prettier.config.mjs`（自定义组合中，建议将此插件放在其他 estree 打印器之后）：
 
-```json
-{
-    "plugins": ["other-plugins", "prettier-plugin-block-padding"]
+```js
+export default {
+    plugins: ["@1adybug/prettier-plugin-block-padding"],
+    semi: false,
+    tabWidth: 4,
 }
 ```
 
 ## 兼容性
 
-- **Prettier**：v3 及以上（作为插件装载）
+- **Prettier**：`^3.8.0`，即 3.x 中的 3.8 及以上版本
 - **解析器**：`babel`、`babel-ts`、`typescript`
 - **模块**：ESM
 
-## ⚠️ 重要提示
+## 配置与插件组合
 
-**与 "@ianvs/prettier-plugin-sort-imports" 插件存在严重兼容性问题，请不要同时使用！**
+目前没有用于独立开关留白规则、仅处理文件顶层或设置空行数的自定义选项。相邻语句之间最多输出**一行空行**，原文有更多空行时也会缩减为一行。一行空行对应两个换行符，不等于两行空行。
+
+需要组合其他 `@1adybug` 插件与 Tailwind CSS 时，使用已集成的 [@1adybug/prettier](../prettier/README.zh-CN.md)。第三方解析器/打印器组合（包括 `@ianvs/prettier-plugin-sort-imports`）不在该集成验证范围内，需要单独验证。
 
 ## 作用范围与限制
 
 - 在所有代码块（包括文件顶层、函数体、if/for/while 等语句块、TS 命名空间块）内的"语句之间"插入额外空行。
 - 支持的表达式块类型：模板字符串、标签模板（如 styled-components）、箭头函数、函数表达式、类表达式、多行函数调用、new 表达式、JSX 元素和片段。
-- 不改写表达式内部与对象属性内部的格式，不影响注释位置与换行决策（由 Prettier 处理）。
+- 表达式和对象属性内部的格式交由 Prettier 处理；插件负责语句容器与类成员分隔。
+- 多行检测依据 Prettier 文档结构中的强制换行；仅由 `printWidth` 引起的换行不一定触发留白。
 - 遇到指令序言（例如函数体内的 `"use strict"`）时，会将该语句容器交回 Prettier，仅跳过该容器内的留白处理，避免丢失指令。
+- 含悬挂注释的文件顶层容器和带注释的空块也会交由 Prettier 处理，这些容器可能跳过自动留白以保留语法与注释。
 - 不会擅自在文件/块的首尾位置添加多余空行。
-- 单行表达式（除对象/数组字面量外）不会触发空行，避免过度分隔。
+- 单行表达式通常不会触发空行；类型声明、对象/数组字面量及属性与方法的分隔规则除外。
 
 ## 本地快速体验
 
 ```bash
-npx prettier --plugin prettier-plugin-block-padding --parser typescript --write "src/**/*.{ts,tsx,js,jsx}"
+pnpm exec prettier --write "src/**/*.{js,jsx,ts,tsx}"
 ```
 
-或使用项目脚本（如存在）：
+本仓库开发时，在 monorepo 根目录安装依赖、构建工作区子包后，使用以下脚本。环境要求见[根目录 README](../../README.zh-CN.md#开发)：
 
 ```bash
-nub run test:quick
+pnpm --filter @1adybug/prettier-plugin-block-padding run build
+pnpm --filter @1adybug/prettier-plugin-block-padding run check
+pnpm --filter @1adybug/prettier-plugin-block-padding run test
+pnpm --filter @1adybug/prettier-plugin-block-padding run test:quick
+pnpm --filter @1adybug/prettier-plugin-block-padding run dev
 ```
 
 ---
 
-如果你在边界条件或特定语法上遇到与预期不一致的留白行为，欢迎提交最小可复现示例以便改进。
+如果遇到与预期不一致的留白行为，欢迎在[问题反馈](https://github.com/1adybug/prettier/issues)提交最小可复现示例。
