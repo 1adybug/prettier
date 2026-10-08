@@ -310,6 +310,16 @@ const PROCESSING_MARKER = Symbol("prettier-plugin-sort-imports-processing")
 
 type ParserLike = Parser | (() => Parser | Promise<Parser>) | undefined
 
+const PARSER_ADAPTER = Symbol.for("@1adybug/prettier.parser-adapter")
+
+interface ComposedParser extends Parser {
+    [PARSER_ADAPTER]?: boolean
+}
+
+function isParserAdapter(parser: Parser): boolean {
+    return (parser as ComposedParser)[PARSER_ADAPTER] === true
+}
+
 async function resolveParser(parser: ParserLike) {
     if (typeof parser === "function") return parser()
     return parser
@@ -320,22 +330,23 @@ async function resolveParsers(parserName: string, plugins: Plugin[]) {
 
     for (const plugin of plugins) {
         const parser = await resolveParser(plugin?.parsers?.[parserName] as ParserLike)
-        if (parser) parsers.push(parser)
+        if (parser && !isParserAdapter(parser)) parsers.push(parser)
     }
 
     return parsers
 }
 
 function getParserObject(parser: ParserLike) {
-    if (!parser || typeof parser === "function") return undefined
+    if (!parser || typeof parser === "function" || isParserAdapter(parser)) return undefined
     return parser
 }
 
 /** 创建合并后的 preprocess 函数 */
-function createCombinedPreprocess(parserName: string, config: PluginConfig) {
-    // 收集需要 preprocess 的插件（如 tailwindcss）
-    const otherPlugins = config.otherPlugins || []
-
+function createCombinedPreprocess(
+    config: PluginConfig,
+    getParsers: (options: ParserOptions) => Promise<Parser[]>,
+    getOtherPluginOptions: (options: ParserOptions) => ParserOptions,
+) {
     return async function combinedPreprocess(text: string, options: any): Promise<string> {
         // 检测递归调用，避免无限循环
         if ((options as any)[PROCESSING_MARKER]) return text
@@ -346,9 +357,9 @@ function createCombinedPreprocess(parserName: string, config: PluginConfig) {
         // Prettier 支持懒加载 parser，tailwindcss 0.8 的 parser 就是异步工厂函数。
         // 因此这里需要先解析 parser，再链式调用它们自己的 preprocess。
         try {
-            const parsers = await resolveParsers(parserName, otherPlugins)
+            const parsers = await getParsers(options)
 
-            const otherPluginOptions = { ...options, ...config.prettierOptions }
+            const otherPluginOptions = getOtherPluginOptions(options)
 
             for (const parser of parsers) {
                 if (typeof parser.preprocess === "function") processedText = await parser.preprocess(processedText, otherPluginOptions)
@@ -427,6 +438,31 @@ function createPluginInstance(config: PluginConfig = {}): Plugin {
 
     for (const parserName of parserNames) {
         const baseParser = baseParsers[parserName]
+        const resolvedParsers = new WeakMap<ParserOptions, Promise<Parser[]>>()
+        const composedOptions = new WeakMap<ParserOptions, ParserOptions>()
+
+        function getOtherPluginOptions(options: ParserOptions): ParserOptions {
+            let otherOptions = composedOptions.get(options)
+
+            if (!otherOptions) {
+                otherOptions = { ...options, ...config.prettierOptions }
+                composedOptions.set(options, otherOptions)
+            }
+
+            Object.assign(otherOptions, options, config.prettierOptions)
+            return otherOptions
+        }
+
+        function getParsers(options: ParserOptions): Promise<Parser[]> {
+            let parsers = resolvedParsers.get(options)
+
+            if (!parsers) {
+                parsers = resolveParsers(parserName, otherPlugins)
+                resolvedParsers.set(options, parsers)
+            }
+
+            return parsers
+        }
 
         let merged = { ...baseParser }
 
@@ -451,9 +487,9 @@ function createPluginInstance(config: PluginConfig = {}): Plugin {
         const originalParse = baseParser.parse
 
         merged.parse = async function chainedParse(text: string, options: any) {
-            const parsers = await resolveParsers(parserName, otherPlugins)
+            const parsers = await getParsers(options)
 
-            const otherPluginOptions = { ...options, ...config.prettierOptions }
+            const otherPluginOptions = getOtherPluginOptions(options)
 
             // 像 prettier-plugin-tailwindcss 0.8 这样的插件会在 parse 阶段修改 AST。
             // 这类 parser 没有 __transformAST，必须显式调用它自己的 parse 才能生效。
@@ -483,7 +519,7 @@ function createPluginInstance(config: PluginConfig = {}): Plugin {
         }
 
         // 最后设置我们的 preprocess（它会链式调用所有插件的 preprocess）
-        merged.preprocess = createCombinedPreprocess(parserName, config)
+        merged.preprocess = createCombinedPreprocess(config, getParsers, getOtherPluginOptions)
         mergedParsers[parserName] = merged
     }
 

@@ -15,7 +15,7 @@
 - **TypeScript 命名空间支持**：在 `namespace`/`module`（`TSModuleBlock`）内部同样按上述规则处理成员语句，并保证花括号与首末行的换行正确。
 - **类成员分隔**：为多行类成员添加空行，并分隔相邻的属性与方法，单行方法也适用。
 - **单行检测**：单行块和表达式通常不会触发额外空行；类型声明、对象/数组字面量及属性与方法的分隔规则除外。
-- **与官方解析器协作**：复用官方 `babel`、`babel-ts`、`typescript` 解析器，仅覆盖 estree 打印阶段的"语句拼接"，其它格式化交由 Prettier 负责。
+- **解析器兼容**：提供 `babel`、`babel-ts`、`typescript` 适配器，委托给前面的兼容解析器或官方解析器；留白仍在 estree 打印阶段处理。
 
 ## 行为细节
 
@@ -242,7 +242,30 @@ class Service {}
 
 ## 插件组合
 
-需要组合其他 `@1adybug` 插件与 Tailwind CSS 时，使用已集成的 [@1adybug/prettier](../prettier/README.zh-CN.md)。第三方解析器/打印器组合（包括 `@ianvs/prettier-plugin-sort-imports`）不在该集成验证范围内，需要单独验证。
+需要组合其他 `@1adybug` 插件与 Tailwind CSS 时，使用已集成的 [@1adybug/prettier](../prettier/README.zh-CN.md)。其他第三方解析器/打印器组合（包括 `@ianvs/prettier-plugin-sort-imports`）需要单独验证。
+
+### 配合 prettier-plugin-merge
+
+默认包入口支持 `prettier-plugin-merge`（已验证 `0.10.1`）与 `babel`、`babel-ts`、`typescript` 组合。merge 必须放在**最后**，以发现并合并前面插件的格式化结果：
+
+```bash
+pnpm add -D prettier @1adybug/prettier-plugin-block-padding prettier-plugin-merge
+```
+
+```js
+export default {
+    plugins: ["@1adybug/prettier-plugin-block-padding", "prettier-plugin-merge"],
+    semi: false,
+    tabWidth: 4,
+    blockPaddingRules: ["types", "interfaces", "enums", "classes"],
+    blockPaddingScope: "top-level",
+    blockPaddingMode: "between",
+    blockPaddingLines: 2,
+    blockPaddingClassMode: "always",
+}
+```
+
+原有的其他 JS/TS 插件也放在同一个列表中，位于 merge 之前。留白插件提供 parser 适配器，使 merge 能包含其格式化过程；直接使用时，仍保留前面兼容解析器的预处理和解析行为。不需要专用兼容入口。实际兼容性仍取决于其他插件及相互重叠的改动，并非保证任意第三方组合都兼容。
 
 ## 作用范围与限制
 
@@ -257,7 +280,7 @@ class Service {}
 
 ## 导出
 
-- 默认导出：Prettier 打印器插件及其注册的选项。
+- 默认导出：包含打印器、parser 适配器及注册选项的 Prettier 插件。
 - `BlockPaddingRule`：支持的规则名称联合类型。
 - `Options`：包含五个留白选项的扩展 Prettier 选项类型。
 

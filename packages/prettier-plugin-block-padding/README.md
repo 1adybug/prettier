@@ -15,7 +15,7 @@ The following describes the default behavior. The [configuration options](#confi
 - **TypeScript Namespace Support**: Applies the same rules to member statements inside `namespace`/`module` (`TSModuleBlock`), ensuring correct line breaks between braces and first/last lines.
 - **Class Member Separation**: Pads multiline class members and separates adjacent properties and methods, including single-line methods.
 - **Single-line Detection**: Single-line blocks and expressions do not trigger additional blank lines, except for type declarations, object/array literals, and the property/method separation rule.
-- **Collaboration with Official Parsers**: Reuses official `babel`, `babel-ts`, and `typescript` parsers, only overriding the "statement concatenation" during the estree printing stage, leaving other formatting to Prettier.
+- **Parser Compatibility**: Provides adapters for `babel`, `babel-ts`, and `typescript`, delegating to preceding compatible parsers or the official parser. Padding remains in the estree printing stage.
 
 ## Behavior Details
 
@@ -242,7 +242,30 @@ Unknown rules or enum values and zero, negative, fractional, or unsafe blank-lin
 
 ## Plugin Composition
 
-For the supported combination with the other `@1adybug` plugins and Tailwind CSS, use [@1adybug/prettier](../prettier/README.md). Third-party parser/printer combinations, including `@ianvs/prettier-plugin-sort-imports`, are not covered by that integration and should be verified separately.
+For the supported combination with the other `@1adybug` plugins and Tailwind CSS, use [@1adybug/prettier](../prettier/README.md). Other third-party parser/printer combinations, including `@ianvs/prettier-plugin-sort-imports`, should be verified separately.
+
+### With prettier-plugin-merge
+
+The default package entry supports `prettier-plugin-merge` (tested with `0.10.1`) for `babel`, `babel-ts`, and `typescript`. Keep merge **last** so it can discover and combine the preceding plugins:
+
+```bash
+pnpm add -D prettier @1adybug/prettier-plugin-block-padding prettier-plugin-merge
+```
+
+```js
+export default {
+    plugins: ["@1adybug/prettier-plugin-block-padding", "prettier-plugin-merge"],
+    semi: false,
+    tabWidth: 4,
+    blockPaddingRules: ["types", "interfaces", "enums", "classes"],
+    blockPaddingScope: "top-level",
+    blockPaddingMode: "between",
+    blockPaddingLines: 2,
+    blockPaddingClassMode: "always",
+}
+```
+
+Keep your other JS/TS plugins before merge in the same list. The padding plugin exposes parser adapters so merge includes its formatting pass, while direct use preserves the preceding compatible parser's preprocessing and parsing. No separate compatibility entry is required. Compatibility depends on the other plugins and any overlapping changes; this is not a guarantee for every third-party combination.
 
 ## Scope and Limitations
 
@@ -257,7 +280,7 @@ For the supported combination with the other `@1adybug` plugins and Tailwind CSS
 
 ## Exports
 
-- Default export: the Prettier printer plugin, including its registered options.
+- Default export: the Prettier plugin, including its printer, parser adapters, and registered options.
 - `BlockPaddingRule`: the union of supported rule names.
 - `Options`: standard Prettier options extended with the five padding options.
 

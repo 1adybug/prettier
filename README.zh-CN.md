@@ -12,7 +12,7 @@
 | ---------------------------------------- | ----------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
 | `@1adybug/eslint`                        | 面向 JavaScript、TypeScript、React、Expo/React Native、Next.js 和 Node.js 的 ESLint Flat Config | [English](./packages/eslint/README.md) / [中文](./packages/eslint/README.zh-CN.md)                                               |
 | `@1adybug/prettier`                      | 组合导入排序、代码块留白、大括号转换和 Tailwind CSS 的聚合 Prettier 插件                        | [English](./packages/prettier/README.md) / [中文](./packages/prettier/README.zh-CN.md)                                           |
-| `@1adybug/prettier-plugin-block-padding` | 按代码结构添加空行                                                                              | [English](./packages/prettier-plugin-brace-padding/README.md) / [中文](./packages/prettier-plugin-brace-padding/README.zh-CN.md) |
+| `@1adybug/prettier-plugin-block-padding` | 按代码结构添加空行                                                                              | [English](./packages/prettier-plugin-block-padding/README.md) / [中文](./packages/prettier-plugin-block-padding/README.zh-CN.md) |
 | `@1adybug/prettier-plugin-remove-braces` | 大括号与箭头函数简写转换                                                                        | [English](./packages/prettier-plugin-remove-braces/README.md) / [中文](./packages/prettier-plugin-remove-braces/README.zh-CN.md) |
 | `@1adybug/prettier-plugin-sort-imports`  | 导入排序与类型导入处理                                                                          | [English](./packages/prettier-plugin-sort-imports/README.md) / [中文](./packages/prettier-plugin-sort-imports/README.zh-CN.md)   |
 
@@ -35,6 +35,8 @@ export default {
 ```
 
 `@1adybug/prettier` 导出的是插件，需要注册到 `plugins` 中，不是 Prettier 配置预设。也可以单独安装各子插件。所有 Prettier 包均要求 Prettier `^3.8.0`。
+
+留白配置及与 `prettier-plugin-merge` 的组合方式，见[留白插件配置](./packages/prettier-plugin-block-padding/README.zh-CN.md#配置)和[组合示例](./packages/prettier-plugin-block-padding/README.zh-CN.md#配合-prettier-plugin-merge)。
 
 使用上述配置执行 Prettier：
 

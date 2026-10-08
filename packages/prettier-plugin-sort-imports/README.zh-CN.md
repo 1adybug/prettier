@@ -191,6 +191,8 @@ export default {
 
 组合不会串联执行每个插件的 `parse` 方法，而是选择第一个不带 AST 转换钩子的自定义解析器；没有此类解析器时使用官方解析器，然后执行收集到的 `__transformAST` 钩子。同名打印器定义由 `otherPlugins` 中靠后的插件覆盖，`babel`、`babel-ts` 和 `typescript` 以外的语言解析器不会被合并。
 
+[留白插件](../prettier-plugin-block-padding/README.zh-CN.md)的纯 parser 适配器不会替换组合解析流程，其选项和打印器仍被保留。惰性 parser 工厂在每次格式化中只解析一次，预处理与解析共享该次组合的选项上下文。如果通过 `prettier-plugin-merge` 合并完整格式化过程，须将 merge 放在最后，见[留白插件示例](../prettier-plugin-block-padding/README.zh-CN.md#配合-prettier-plugin-merge)。
+
 ## 导出
 
 - 默认导出：使用默认导入排序配置的插件。

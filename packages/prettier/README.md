@@ -53,12 +53,12 @@ The combined parser pipeline supports `babel`, `babel-ts`, and `typescript`, inc
 For each plugin's options and limits, see:
 
 - [Import sorting](../prettier-plugin-sort-imports/README.md)
-- [Block padding](../prettier-plugin-brace-padding/README.md)
+- [Block padding](../prettier-plugin-block-padding/README.md)
 - [Brace transforms](../prettier-plugin-remove-braces/README.md)
 
 ## Block Padding
 
-The same five options as the [standalone padding plugin](../prettier-plugin-brace-padding/README.md#configuration) can be set directly in the Prettier configuration:
+The same five options as the [standalone padding plugin](../prettier-plugin-block-padding/README.md#configuration) can be set directly in the Prettier configuration:
 
 | Option                  | Default              | Behavior                                                           |
 | ----------------------- | -------------------- | ------------------------------------------------------------------ |
@@ -98,6 +98,29 @@ export default {
 ```
 
 `blockPaddingClassMode: "always"` includes empty class declarations. Matching boundaries use exactly the requested number of empty lines; unmatched boundaries retain at most one existing blank line. `"top-level"` delegates nested containers to Prettier. Unknown rules, invalid enum values, and invalid blank-line counts are rejected. Disabling padding does not disable import sorting, brace transforms, or Tailwind class sorting.
+
+### With prettier-plugin-merge
+
+The aggregate plugin already combines its bundled transforms. If you use `prettier-plugin-merge` to combine it with additional JS/TS plugins, keep merge last (tested with `0.10.1`):
+
+```bash
+pnpm add -D prettier @1adybug/prettier prettier-plugin-merge
+```
+
+```js
+export default {
+    plugins: ["@1adybug/prettier", "prettier-plugin-merge"],
+    semi: false,
+    tabWidth: 4,
+    blockPaddingRules: ["types", "interfaces", "enums", "classes"],
+    blockPaddingScope: "top-level",
+    blockPaddingMode: "between",
+    blockPaddingLines: 2,
+    blockPaddingClassMode: "always",
+}
+```
+
+The bundled import sorting, Tailwind sorting, brace transforms, and padding remain active. See the [padding composition notes](../prettier-plugin-block-padding/README.md#with-prettier-plugin-merge) for the supported parsers and limits.
 
 ## Exports
 

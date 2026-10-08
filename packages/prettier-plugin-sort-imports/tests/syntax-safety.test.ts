@@ -1,7 +1,8 @@
 import assert from "node:assert/strict"
 import { describe, test } from "node:test"
 
-import { type Plugin, format } from "prettier"
+import { type Parser, type Plugin, format } from "prettier"
+import * as estree from "prettier/plugins/estree"
 import * as typescriptPlugin from "prettier/plugins/typescript"
 
 import { createPlugin } from "../src/index"
@@ -275,3 +276,77 @@ test("passes prettierOptions to every composed parser stage", async () => {
     assert.deepEqual(observedParseOptions, [true])
     assert.deepEqual(observedTransformOptions, [true])
 })
+
+const PARSER_ADAPTER = Symbol.for("@1adybug/prettier.parser-adapter")
+const base = typescriptPlugin.parsers.typescript
+
+for (const lazy of [false, true]) {
+    test(`preserves options and printers while excluding ${lazy ? "lazy" : "static"} adapters from parser stages`, async () => {
+        const calls = { factory: 0, preprocess: 0, parse: 0, transform: 0, printer: 0 }
+
+        const fail = () => {
+            throw new Error("Pure adapters must not run in composed parser stages")
+        }
+
+        const adapterParser = { ...base, astFormat: "adapter-only", [PARSER_ADAPTER]: true, preprocess: fail, parse: fail, __transformAST: fail }
+
+        const basePrinter = estree.printers.estree
+        const adapter = {
+            options: { fixtureOption: { type: "boolean", default: true, description: "Fixture option" } },
+            parsers: { typescript: lazy ? async () => adapterParser : adapterParser },
+            printers: {
+                estree: {
+                    ...basePrinter,
+                    print(...args: Parameters<typeof basePrinter.print>) {
+                        if (args[0].node.type === "Program") calls.printer++
+                        return basePrinter.print(...args)
+                    },
+                },
+            },
+        } as unknown as Plugin
+        const provider = {
+            parsers: {
+                typescript: async () => {
+                    calls.factory++
+                    return {
+                        ...base,
+                        preprocess(text: string, options: Record<string, unknown>) {
+                            calls.preprocess++
+                            assert.equal(options.fixtureOption, true)
+                            return text
+                        },
+                        parse(text: string, options: Parameters<Parser["parse"]>[1]) {
+                            calls.parse++
+                            assert.equal((options as unknown as Record<string, unknown>).fixtureOption, true)
+                            return base.parse(text, options)
+                        },
+                    }
+                },
+            },
+        } as unknown as Plugin
+        const transformer = {
+            parsers: {
+                typescript: {
+                    __transformAST(ast: unknown) {
+                        calls.transform++
+                        return ast
+                    },
+                },
+            },
+        } as unknown as Plugin
+        const composed = createPlugin({ otherPlugins: [adapter, provider, transformer] })
+        assert.equal(composed.parsers?.typescript.astFormat, "estree")
+        assert.equal((composed.parsers?.typescript as unknown as Record<symbol, unknown>)[PARSER_ADAPTER], undefined)
+        const source = 'import z from "z"\nimport a from "a"\nconsole.log(z, a)'
+
+        const options = { parser: "typescript", plugins: [composed], semi: false }
+
+        const output = await format(source, options)
+        assert(output.indexOf('from "a"') < output.indexOf('from "z"'))
+        assert.deepEqual(calls, { factory: 1, preprocess: 1, parse: 1, transform: 1, printer: 1 })
+
+        const nested = createPlugin({ otherPlugins: [composed] })
+        assert.equal(await format(output, { ...options, plugins: [nested] }), output)
+        assert.deepEqual(calls, { factory: 2, preprocess: 2, parse: 2, transform: 2, printer: 2 })
+    })
+}

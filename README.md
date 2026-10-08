@@ -12,7 +12,7 @@ Shared ESLint and Prettier tooling published under the `@1adybug` scope.
 | ---------------------------------------- | ---------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
 | `@1adybug/eslint`                        | Flat ESLint configuration for JavaScript, TypeScript, React, Expo/React Native, Next.js, and Node.js | [English](./packages/eslint/README.md) / [中文](./packages/eslint/README.zh-CN.md)                                               |
 | `@1adybug/prettier`                      | Aggregate Prettier plugin for import sorting, block padding, brace transforms, and Tailwind CSS      | [English](./packages/prettier/README.md) / [中文](./packages/prettier/README.zh-CN.md)                                           |
-| `@1adybug/prettier-plugin-block-padding` | Structural blank-line formatting                                                                     | [English](./packages/prettier-plugin-brace-padding/README.md) / [中文](./packages/prettier-plugin-brace-padding/README.zh-CN.md) |
+| `@1adybug/prettier-plugin-block-padding` | Structural blank-line formatting                                                                     | [English](./packages/prettier-plugin-block-padding/README.md) / [中文](./packages/prettier-plugin-block-padding/README.zh-CN.md) |
 | `@1adybug/prettier-plugin-remove-braces` | Brace and concise-arrow transforms                                                                   | [English](./packages/prettier-plugin-remove-braces/README.md) / [中文](./packages/prettier-plugin-remove-braces/README.zh-CN.md) |
 | `@1adybug/prettier-plugin-sort-imports`  | Import sorting and type-only import handling                                                         | [English](./packages/prettier-plugin-sort-imports/README.md) / [中文](./packages/prettier-plugin-sort-imports/README.zh-CN.md)   |
 
@@ -35,6 +35,8 @@ export default {
 ```
 
 `@1adybug/prettier` is a plugin, so register it in `plugins`; it does not export a Prettier configuration preset. Individual plugins can also be installed separately. All Prettier packages require Prettier `^3.8.0`.
+
+For configurable padding and composition with `prettier-plugin-merge`, see the [block-padding configuration](./packages/prettier-plugin-block-padding/README.md#configuration) and [composition example](./packages/prettier-plugin-block-padding/README.md#with-prettier-plugin-merge).
 
 Run Prettier with the configuration above:
 

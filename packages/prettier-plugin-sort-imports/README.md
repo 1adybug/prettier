@@ -191,6 +191,8 @@ Import preprocessing runs first, followed by composed parser preprocessors in `o
 
 Composition does not chain every plugin's `parse` method. It selects the first custom parser without an AST-transform hook, or the official parser when none is available, then runs the collected `__transformAST` hooks. Printer definitions with the same name are replaced by later entries in `otherPlugins`. Additional language parsers outside `babel`, `babel-ts`, and `typescript` are not merged.
 
+Pure parser adapters from the [block-padding plugin](../prettier-plugin-block-padding/README.md) do not replace the composed parsing pipeline; their options and printers remain included. Lazy parser factories resolve once per formatting run, and preprocessing and parsing share the run's composed options. To combine complete formatting passes through `prettier-plugin-merge`, keep merge last; see the [padding example](../prettier-plugin-block-padding/README.md#with-prettier-plugin-merge).
+
 ## Exports
 
 - Default export: the plugin with default import-sorting configuration.

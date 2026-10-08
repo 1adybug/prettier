@@ -2,6 +2,7 @@ import { type AstPath, type Doc, type ParserOptions, type Plugin as PrettierPlug
 import * as estreePlugin from "prettier/plugins/estree"
 
 import { isPaddingContainer, paddingOptions, resolvePaddingOptions, shouldPadContainer } from "./options.js"
+import { parsers } from "./parsers.js"
 
 import { printStatementSequence } from "./helpers/sequence"
 
@@ -191,9 +192,8 @@ const printers = {
     estree: createPatchedEstreePrinter(baseEstree),
 }
 
-// 注意：不导出 parsers，只导出 printers
-// 这样可以避免覆盖其他插件的 parsers（如 removeBraces、tailwindcss 等）
 const plugin: PrettierPlugin = {
+    parsers,
     printers,
     options: paddingOptions,
 }

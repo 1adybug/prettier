@@ -4,6 +4,14 @@ import { describe, test } from "node:test"
 import { fileURLToPath, pathToFileURL } from "node:url"
 
 import { type Plugin, format, getSupportInfo } from "prettier"
+import merge from "prettier-plugin-merge"
+import * as tailwind from "prettier-plugin-tailwindcss"
+
+import padding from "../../prettier-plugin-block-padding/src/index"
+
+import braces from "../../prettier-plugin-remove-braces/src/index"
+
+import { createPlugin } from "../../prettier-plugin-sort-imports/src/index"
 
 interface PrettierModule {
     default: Plugin
@@ -458,4 +466,108 @@ const view = <div className="p-4 flex" />
         await format(first, { parser, semi: false })
         assert.equal(second, first, parser)
     }
+})
+
+describe("merge plugin interoperability", () => {
+    for (const parser of ["babel", "babel-ts", "typescript"]) {
+        test(`preserves padding and the other transforms through merge with ${parser}`, async () => {
+            const plugin = await loadPlugin()
+            const declarations = parser === "babel" ? "export class A {}\nexport default class {}" : "export type A = string\nexport interface B {}"
+            const source = `import z from "z"\nimport a from "a"\n${declarations}\nconst view = <div className="text-sm p-4 flex" />\nif (ready) { execute() }`
+
+            const options = {
+                ...recommendedOptions,
+                parser,
+                filepath: resolve(tailwindProjectDir, "src/App.tsx"),
+                controlStatementBraces: "remove",
+                blockPaddingRules: ["types", "interfaces", "classes"],
+                blockPaddingScope: "top-level",
+                blockPaddingMode: "between",
+                blockPaddingLines: 2,
+                blockPaddingClassMode: "always",
+            }
+
+            const expected = await format(source, { ...options, plugins: [plugin] })
+            assert(expected.includes("\n\n\nexport"))
+            assert(expected.includes('className="flex p-4 text-sm"'))
+            assert(expected.includes("if (ready) execute()"))
+            assert(expected.indexOf('from "a"') < expected.indexOf('from "z"'))
+            const output = await format(source, { ...options, plugins: [plugin, merge] })
+            assert.equal(output, expected)
+            assert.equal(await format(output, { ...options, plugins: [plugin, merge] }), output)
+            assert.equal(
+                await format(source, { ...options, blockPaddingRules: [], plugins: [plugin, merge] }),
+                await format(source, { ...options, blockPaddingRules: [], plugins: [plugin] }),
+            )
+        })
+
+        test(`preserves direct and factory compositions in different orders with ${parser}`, async () => {
+            const declarations = parser === "babel" ? "class A {}\nclass B {}" : "type A = string\ninterface B {}"
+            const source = `${declarations}\nconst view = <div className="text-sm p-4 flex" />\nif (ready) { execute() }`
+
+            const options = {
+                parser,
+                filepath: resolve(tailwindProjectDir, "src/App.tsx"),
+                semi: false,
+                tabWidth: 4,
+                controlStatementBraces: "remove",
+                blockPaddingRules: ["types", "interfaces", "classes"],
+                blockPaddingScope: "top-level",
+                blockPaddingMode: "between",
+                blockPaddingLines: 2,
+                blockPaddingClassMode: "always",
+            }
+
+            const companions: Plugin[][] = [
+                [tailwind as unknown as Plugin, braces, padding],
+                [padding, tailwind as unknown as Plugin, braces],
+                [braces, padding, tailwind as unknown as Plugin],
+            ]
+
+            for (const otherPlugins of companions) {
+                const previousPlugins = otherPlugins.map(plugin => (plugin === padding ? { ...padding, parsers: undefined } : plugin))
+                assert.equal(await format(source, { ...options, plugins: otherPlugins }), await format(source, { ...options, plugins: previousPlugins }))
+
+                for (const plugins of [[createPlugin({ otherPlugins })], [...otherPlugins, merge]]) {
+                    const output = await format(source, { ...options, plugins })
+                    assert(output.includes("\n\n\n"))
+                    assert(output.includes('className="flex p-4 text-sm"'))
+                    assert(output.includes("if (ready) execute()"))
+                    assert.equal(await format(output, { ...options, plugins }), output)
+                }
+            }
+
+            for (const plugins of [
+                [tailwind as unknown as Plugin, padding],
+                [padding, tailwind as unknown as Plugin],
+            ]) {
+                const output = await format(source, { ...options, plugins })
+                assert(output.includes("\n\n\n"))
+                assert(output.includes('className="flex p-4 text-sm"'))
+            }
+
+            for (const plugins of [
+                [braces, padding],
+                [padding, braces],
+            ]) {
+                const output = await format(source, { ...options, plugins })
+                assert(output.includes("\n\n\n"))
+                assert(output.includes("if (ready) execute()"))
+            }
+        })
+    }
+
+    test("loads aggregate and merge using string plugin paths", async () => {
+        const options = {
+            parser: "typescript",
+            semi: false,
+            blockPaddingRules: ["types"],
+            blockPaddingScope: "top-level",
+            blockPaddingMode: "between",
+            blockPaddingLines: 2,
+            plugins: [resolve(packageDir, "dist/index.js"), resolve(packageDir, "node_modules/prettier-plugin-merge/dist/index.js")],
+        }
+
+        assert.equal(await format("type A = string\ntype B = number", options), "type A = string\n\n\ntype B = number\n")
+    })
 })

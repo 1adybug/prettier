@@ -53,12 +53,12 @@ pnpm exec prettier --write "src/**/*.{js,jsx,ts,tsx}"
 各插件的选项和限制见：
 
 - [导入排序](../prettier-plugin-sort-imports/README.zh-CN.md)
-- [代码块留白](../prettier-plugin-brace-padding/README.zh-CN.md)
+- [代码块留白](../prettier-plugin-block-padding/README.zh-CN.md)
 - [大括号转换](../prettier-plugin-remove-braces/README.zh-CN.md)
 
 ## 代码块留白
 
-可在 Prettier 配置中直接使用[独立留白插件](../prettier-plugin-brace-padding/README.zh-CN.md#配置)相同的五个选项：
+可在 Prettier 配置中直接使用[独立留白插件](../prettier-plugin-block-padding/README.zh-CN.md#配置)相同的五个选项：
 
 | 选项                    | 默认值           | 行为                                             |
 | ----------------------- | ---------------- | ------------------------------------------------ |
@@ -98,6 +98,29 @@ export default {
 ```
 
 `blockPaddingClassMode: "always"` 会包含空类声明。匹配边界恰好输出指定数量的空行，未匹配的边界最多保留一行原有空行。`"top-level"` 将嵌套容器交由 Prettier 处理。未知规则、非法枚举值和非法空行数会被拒绝。关闭留白不会关闭导入排序、大括号转换或 Tailwind 类名排序。
+
+### 配合 prettier-plugin-merge
+
+聚合插件已组合内置转换。如果使用 `prettier-plugin-merge` 将它与其他 JS/TS 插件组合，仍须将 merge 放在最后（已验证 `0.10.1`）：
+
+```bash
+pnpm add -D prettier @1adybug/prettier prettier-plugin-merge
+```
+
+```js
+export default {
+    plugins: ["@1adybug/prettier", "prettier-plugin-merge"],
+    semi: false,
+    tabWidth: 4,
+    blockPaddingRules: ["types", "interfaces", "enums", "classes"],
+    blockPaddingScope: "top-level",
+    blockPaddingMode: "between",
+    blockPaddingLines: 2,
+    blockPaddingClassMode: "always",
+}
+```
+
+内置导入排序、Tailwind 排序、大括号转换和留白仍然有效。支持的解析器及限制见[留白插件组合说明](../prettier-plugin-block-padding/README.zh-CN.md#配合-prettier-plugin-merge)。
 
 ## 导出
 
