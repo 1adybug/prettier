@@ -1,5 +1,14 @@
 # @1adybug/prettier
 
+## 0.0.35
+
+### Patch Changes
+
+- 364c0f4: Make the default block-padding entry compatible with prettier-plugin-merge by registering parser adapters that preserve preceding parser behavior. Keep pure adapters out of the composed parser pipeline so preprocessing and AST transforms are not duplicated. Rename the package directory to prettier-plugin-block-padding and update repository links and composition documentation.
+- Updated dependencies [364c0f4]
+    - @1adybug/prettier-plugin-block-padding@0.0.23
+    - @1adybug/prettier-plugin-sort-imports@0.0.36
+
 ## 0.0.34
 
 ### Patch Changes
