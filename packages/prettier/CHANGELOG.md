@@ -1,5 +1,14 @@
 # @1adybug/prettier
 
+## 0.0.36
+
+### Patch Changes
+
+- 7d12bee: Preserve Prettier's native assignment and callback layout arguments in the block-padding printer. Predict control-body wrapping from the transformed nesting depth and tab width, fixing non-idempotent braces in nested control statements and keeping direct and merge output consistent.
+- Updated dependencies [7d12bee]
+    - @1adybug/prettier-plugin-block-padding@0.0.24
+    - @1adybug/prettier-plugin-remove-braces@0.0.16
+
 ## 0.0.35
 
 ### Patch Changes
