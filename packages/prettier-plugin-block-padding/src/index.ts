@@ -48,7 +48,7 @@ function createPatchedEstreePrinter(base: Printer): Printer {
             }
         }
 
-        if (!isPaddingContainer(node.type)) return base.print(path, options, print)
+        if (!isPaddingContainer(node.type)) return base.print(path, options, print, args)
 
         const padding = resolvePaddingOptions(options)
         if (!shouldPadContainer(node.type, padding)) return base.print(path, options, print, args)
@@ -61,7 +61,7 @@ function createPatchedEstreePrinter(base: Printer): Printer {
             const hasDirectives = Array.isArray(anyNode.directives) && anyNode.directives.length > 0
 
             // 如果 Program 为空但有注释（如只有三斜线指令），使用基础打印机处理
-            if (!hasBody && allComments.length > 0) return base.print(path, options, print)
+            if (!hasBody && allComments.length > 0) return base.print(path, options, print, args)
 
             // 如果 Program 有 directives，使用基础打印机处理
             // 因为 directives 可能有前置注释，而我们的 printStatementSequence 不处理 directives
@@ -119,7 +119,7 @@ function createPatchedEstreePrinter(base: Printer): Printer {
             if (hasDirectivePrologue(node as NodeWithDirectives)) return base.print(path, options, print, args)
 
             // 如果块为空但有注释（如 catch { /* empty */ }），使用基础打印机处理
-            if (!hasBody && hasComments) return base.print(path, options, print)
+            if (!hasBody && hasComments) return base.print(path, options, print, args)
 
             // 如果块完全为空（没有语句也没有注释）
             if (!hasBody) return ["{", "}"]
@@ -153,7 +153,7 @@ function createPatchedEstreePrinter(base: Printer): Printer {
             const hasComments = anyNode.comments && anyNode.comments.length > 0
 
             // 如果类主体为空但有注释，使用基础打印机处理
-            if (!hasBody && hasComments) return base.print(path, options, print)
+            if (!hasBody && hasComments) return base.print(path, options, print, args)
 
             // 如果类主体完全为空（没有成员也没有注释）
             if (!hasBody) return ["{", "}"]
@@ -165,7 +165,7 @@ function createPatchedEstreePrinter(base: Printer): Printer {
             return ["{", indent([hardline, printed]), hardline, "}"]
         }
 
-        return base.print(path, options, print)
+        return base.print(path, options, print, args)
     }
 
     function willPrintOwnComments(path: AstPath, options?: ParserOptions): boolean {

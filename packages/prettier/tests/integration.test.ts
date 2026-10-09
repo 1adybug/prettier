@@ -469,6 +469,48 @@ const view = <div className="p-4 flex" />
 })
 
 describe("merge plugin interoperability", () => {
+    test("preserves native layout for large type unions with and without merge", async () => {
+        const plugin = await loadPlugin()
+        const source = `export type Value = ${Array.from({ length: 12 }, (_, index) => JSON.stringify(`some-long-value-${index}`)).join(" | ")}`
+
+        for (const parser of ["babel-ts", "typescript"]) {
+            const options = { ...recommendedOptions, parser }
+
+            const expected = await format(source, options)
+
+            for (const plugins of [[plugin], [plugin, merge]]) {
+                for (const extra of [{}, { blockPaddingRules: [] }]) {
+                    const config = { ...options, ...extra, plugins }
+
+                    const output = await format(source, config)
+                    assert.equal(output, expected)
+                    assert.equal(await format(output, config), output)
+                }
+            }
+        }
+    })
+
+    test("keeps nested controls identical and idempotent in direct and merge pipelines", async () => {
+        const plugin = await loadPlugin()
+        const source =
+            "for (const discriminator of tsDiscriminators) if (!kotlinDiscriminators.has(discriminator)) throw new Error(`Kotlin contract is missing discriminator ${discriminator}`)"
+
+        const expected = `for (const discriminator of tsDiscriminators) {
+    if (!kotlinDiscriminators.has(discriminator)) throw new Error(\`Kotlin contract is missing discriminator \${discriminator}\`)
+}
+`
+
+        for (const parser of ["babel", "babel-ts", "typescript"]) {
+            for (const plugins of [[plugin], [plugin, merge]]) {
+                const options = { ...recommendedOptions, parser, plugins }
+
+                const output = await format(source, options)
+                assert.equal(output, expected)
+                assert.equal(await format(output, options), output)
+            }
+        }
+    })
+
     for (const parser of ["babel", "babel-ts", "typescript"]) {
         test(`preserves padding and the other transforms through merge with ${parser}`, async () => {
             const plugin = await loadPlugin()

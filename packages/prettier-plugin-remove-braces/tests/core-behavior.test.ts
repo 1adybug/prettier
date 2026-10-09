@@ -360,6 +360,59 @@ test("multiLineBraces predicts wrapping through unary expression shells", async 
     }
 })
 
+test("multiLineBraces uses the final nesting instead of the source column", async () => {
+    const source =
+        "for (const discriminator of tsDiscriminators) if (!kotlinDiscriminators.has(discriminator)) throw new Error(`Kotlin contract is missing discriminator ${discriminator}`)"
+
+    const options: TransformASTOptions = { controlStatementBraces: "add", multiLineBraces: "add", printWidth: 160 }
+
+    const expected = `for (const discriminator of tsDiscriminators) {
+    if (!kotlinDiscriminators.has(discriminator)) throw new Error(\`Kotlin contract is missing discriminator \${discriminator}\`)
+}
+`
+
+    for (const parser of ["babel", "babel-ts", "typescript"] as const) {
+        const first = await formatCode(source, options, parser)
+        assert.equal(first, expected, parser)
+        assert.equal(await formatCode(first, options, parser), first, parser)
+    }
+})
+
+test("multiLineBraces ignores a header that wraps while its body stays on one line", async () => {
+    const options: TransformASTOptions = { multiLineBraces: "add", printWidth: 60 }
+
+    const source = "if (someVeryLongConditionName && anotherVeryLongConditionName) execute(firstArgument, secondArgument)"
+    const first = await formatCode(source, options)
+    assert.doesNotMatch(first, /\) \{/)
+    assert.equal(await formatCode(first, options), first)
+})
+
+test("multiLineBraces accounts for structural indentation and tab width", async () => {
+    const call = "execute(firstArgument, secondArgument)"
+
+    const cases = [
+        { source: `if (ready) ${call}`, bodyIndent: 1 },
+        { source: `function run() { if (ready) ${call} }`, bodyIndent: 2 },
+        { source: `class Runner { run() { if (ready) ${call} } }`, bodyIndent: 3 },
+        { source: `class Runner { static { if (ready) ${call} } }`, bodyIndent: 3 },
+        { source: `namespace Runner { if (ready) ${call} }`, bodyIndent: 2 },
+        { source: `function run() { switch (value) { case 1: if (ready) ${call} } }`, bodyIndent: 4 },
+        { source: `while (pending) if (ready) ${call}`, bodyIndent: 2 },
+    ]
+
+    for (const tabWidth of [2, 4, 8]) {
+        for (const useTabs of [false, true]) {
+            for (const { source, bodyIndent } of cases) {
+                const options = { controlStatementBraces: "add" as const, multiLineBraces: "add" as const, printWidth: 44, tabWidth, useTabs }
+
+                const first = await formatCode(source, options)
+                assert.equal(first.includes("if (ready) {"), bodyIndent * tabWidth + call.length > options.printWidth, source)
+                assert.equal(await formatCode(first, options), first, source)
+            }
+        }
+    }
+})
+
 test("multiLineBraces skips width prediction for expressions Prettier cannot break", async () => {
     const options: TransformASTOptions = { multiLineBraces: "add", printWidth: 40 }
 

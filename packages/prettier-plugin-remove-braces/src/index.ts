@@ -177,21 +177,19 @@ function statementMayWrap(node: any): boolean {
 
 // Check both source line spans and predictable width-based wrapping. Without
 // the latter, an unbraced long call gets braces only on the second format pass.
-function isMultilineStatement(node: any, options: TransformASTOptions): boolean {
+function isMultilineStatement(node: any, options: TransformASTOptions, context: TransformContext): boolean {
     if (!node?.loc) return false
 
     if (node.loc.start.line !== node.loc.end.line) return true
 
     const printWidth = options.printWidth
     const range = getNodeRange(node)
+    // When the control header breaks, its body starts on an indented line.
+    // Use that layout for both braced and unbraced bodies. Source columns
+    // include inline ancestor headers that may disappear during transformation.
+    const bodyColumn = ((context.indentLevel ?? 0) + 1) * (options.tabWidth ?? 2)
 
-    return (
-        typeof printWidth === "number" &&
-        printWidth > 0 &&
-        !!range &&
-        statementMayWrap(node) &&
-        (node.loc.start.column ?? 0) + (range[1] - range[0]) > printWidth
-    )
+    return typeof printWidth === "number" && printWidth > 0 && !!range && statementMayWrap(node) && bodyColumn + (range[1] - range[0]) > printWidth
 }
 
 // Helper function to check if removing braces would cause dangling else issue
@@ -226,12 +224,36 @@ export interface TransformASTOptions {
     multiLineBraces?: "default" | "remove" | "add"
     /** Prettier line width, used to predict wrapping before the first print. */
     printWidth?: number
+    /** Prettier indentation width, used with the transformed nesting depth. */
+    tabWidth?: number
 }
 
 interface TransformContext {
     parent?: any
     parentKey?: string
     comments?: any[]
+    indentLevel?: number
+}
+
+function getChildContext(parent: any, parentKey: string, context: TransformContext, comments: any[]): TransformContext {
+    let indentLevel = context.indentLevel ?? 0
+    const child = parent[parentKey]
+
+    if (
+        (parentKey === "body" && ["BlockStatement", "StaticBlock", "TSModuleBlock", "ClassBody"].includes(parent.type)) ||
+        (parent.type === "SwitchStatement" && parentKey === "cases") ||
+        (parent.type === "SwitchCase" && parentKey === "consequent")
+    )
+        indentLevel++
+    else if (
+        child?.type !== "BlockStatement" &&
+        ((parent.type === "IfStatement" && (parentKey === "consequent" || (parentKey === "alternate" && child?.type !== "IfStatement"))) ||
+            (["ForStatement", "ForInStatement", "ForOfStatement", "WhileStatement", "DoWhileStatement", "WithStatement"].includes(parent.type) &&
+                parentKey === "body"))
+    )
+        indentLevel++
+
+    return { parent, parentKey, comments, indentLevel }
 }
 
 // Certain parents (e.g. function bodies, try/catch) syntactically require a BlockStatement
@@ -266,6 +288,7 @@ function transformAST(ast: any, options: TransformASTOptions = {}, context: Tran
     if (!ast || typeof ast !== "object") return ast
 
     const comments = context.comments ?? (Array.isArray(ast.comments) ? ast.comments : [])
+    const childContext = (parent: any, parentKey: string) => getChildContext(parent, parentKey, context, comments)
 
     // Handle ArrowFunctionExpression
     if (ast.type === "ArrowFunctionExpression" && ast.body?.type === "BlockStatement") {
@@ -322,7 +345,7 @@ function transformAST(ast: any, options: TransformASTOptions = {}, context: Tran
                 argument: expressionStatement.expression,
             }
 
-            voidExpression.argument = transformAST(voidExpression.argument, options, { parent: voidExpression, parentKey: "argument", comments })
+            voidExpression.argument = transformAST(voidExpression.argument, options, childContext(voidExpression, "argument"))
 
             return {
                 ...ast,
@@ -350,7 +373,7 @@ function transformAST(ast: any, options: TransformASTOptions = {}, context: Tran
                 if (options.controlStatementBraces === "remove") transformed.consequent = copyLocationInfo(innerStatement, ast.consequent)
                 // "default" 和 "add" 模式：保持大括号
             } else {
-                if (isMultilineStatement(innerStatement, options)) {
+                if (isMultilineStatement(innerStatement, options, context)) {
                     // 内部是多行语句，根据 multiLineBraces 选项决定
                     if (options.multiLineBraces === "remove") transformed.consequent = copyLocationInfo(innerStatement, ast.consequent)
                     // "default" 和 "add" 模式：保持大括号
@@ -374,7 +397,7 @@ function transformAST(ast: any, options: TransformASTOptions = {}, context: Tran
                 if (options.controlStatementBraces === "remove") transformed.alternate = copyLocationInfo(innerStatement, ast.alternate)
                 // "default" 和 "add" 模式：保持大括号
             } else {
-                if (isMultilineStatement(innerStatement, options)) {
+                if (isMultilineStatement(innerStatement, options, context)) {
                     // 内部是多行语句，根据 multiLineBraces 选项决定
                     if (options.multiLineBraces === "remove") transformed.alternate = copyLocationInfo(innerStatement, ast.alternate)
                     // "default" 和 "add" 模式：保持大括号
@@ -419,7 +442,7 @@ function transformAST(ast: any, options: TransformASTOptions = {}, context: Tran
                 ast.consequent &&
                 !isControlStatement(ast.consequent) &&
                 ast.consequent.type !== "BlockStatement" &&
-                isMultilineStatement(ast.consequent, options)
+                isMultilineStatement(ast.consequent, options, context)
             ) {
                 transformed.consequent = copyLocationInfo(
                     {
@@ -434,7 +457,7 @@ function transformAST(ast: any, options: TransformASTOptions = {}, context: Tran
                 ast.alternate &&
                 !isControlStatement(ast.alternate) &&
                 ast.alternate.type !== "BlockStatement" &&
-                isMultilineStatement(ast.alternate, options)
+                isMultilineStatement(ast.alternate, options, context)
             ) {
                 transformed.alternate = copyLocationInfo(
                     {
@@ -447,8 +470,8 @@ function transformAST(ast: any, options: TransformASTOptions = {}, context: Tran
         }
 
         // Recursively transform nested if statements
-        transformed.consequent = transformAST(transformed.consequent, options, { parent: transformed, parentKey: "consequent", comments })
-        transformed.alternate = transformAST(transformed.alternate, options, { parent: transformed, parentKey: "alternate", comments })
+        transformed.consequent = transformAST(transformed.consequent, options, childContext(transformed, "consequent"))
+        transformed.alternate = transformAST(transformed.alternate, options, childContext(transformed, "alternate"))
 
         return transformed
     }
@@ -471,7 +494,7 @@ function transformAST(ast: any, options: TransformASTOptions = {}, context: Tran
                     if (options.controlStatementBraces === "remove") transformed.body = copyLocationInfo(innerStatement, block)
                     // "default" 和 "add" 模式：保持大括号
                 } else {
-                    if (isMultilineStatement(innerStatement, options)) {
+                    if (isMultilineStatement(innerStatement, options, context)) {
                         // 内部是多行语句，根据 multiLineBraces 选项决定
                         if (options.multiLineBraces === "remove") transformed.body = copyLocationInfo(innerStatement, block)
                         // "default" 和 "add" 模式：保持大括号
@@ -499,7 +522,7 @@ function transformAST(ast: any, options: TransformASTOptions = {}, context: Tran
             ast.body &&
             !isControlStatement(ast.body) &&
             ast.body.type !== "BlockStatement" &&
-            isMultilineStatement(ast.body, options)
+            isMultilineStatement(ast.body, options, context)
         ) {
             transformed.body = copyLocationInfo(
                 {
@@ -511,7 +534,7 @@ function transformAST(ast: any, options: TransformASTOptions = {}, context: Tran
         }
 
         // Recursively transform loop body
-        transformed.body = transformAST(transformed.body, options, { parent: transformed, parentKey: "body", comments })
+        transformed.body = transformAST(transformed.body, options, childContext(transformed, "body"))
 
         return transformed
     }
@@ -531,10 +554,10 @@ function transformAST(ast: any, options: TransformASTOptions = {}, context: Tran
 
     // Recursively transform all child nodes
     for (const key in ast) {
-        if (Array.isArray(ast[key])) ast[key] = ast[key].map(item => transformAST(item, options, { parent: ast, parentKey: key, comments }))
+        if (Array.isArray(ast[key])) ast[key] = ast[key].map(item => transformAST(item, options, childContext(ast, key)))
         else {
             if (ast[key] && typeof ast[key] === "object" && key !== "loc" && key !== "range" && key !== "tokens")
-                ast[key] = transformAST(ast[key], options, { parent: ast, parentKey: key, comments })
+                ast[key] = transformAST(ast[key], options, childContext(ast, key))
         }
     }
 

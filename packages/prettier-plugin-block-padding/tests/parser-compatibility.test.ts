@@ -26,7 +26,49 @@ const selected = {
 }
 
 describe("parser-based plugin compatibility", () => {
+    for (const parser of ["babel-ts", "typescript"]) {
+        test(`preserves native assignment layout arguments with ${parser}`, async () => {
+            const source = `export type Value = ${Array.from({ length: 12 }, (_, index) => JSON.stringify(`some-long-value-${index}`)).join(" | ")}`
+
+            const options = { ...style, parser, printWidth: 160 }
+
+            const expected = await format(source, options)
+
+            assert.match(expected, /Value =\n {4}\|/)
+
+            for (const plugins of [[padding], [padding, merge]]) {
+                for (const extra of [{}, { blockPaddingRules: [] }]) {
+                    const config = { ...options, ...extra, plugins }
+
+                    const output = await format(source, config)
+                    assert.equal(output, expected)
+                    assert.equal(await format(output, config), output)
+                }
+            }
+        })
+    }
+
     for (const parser of parserNames) {
+        test(`preserves native callback layout arguments with ${parser}`, async () => {
+            const source = `const callback = memo(({ firstArgument, secondArgument, thirdArgument, fourthArgument }) => {
+    return execute(firstArgument, secondArgument, thirdArgument, fourthArgument)
+})`
+
+            const options = { ...style, parser, printWidth: 80 }
+
+            const expected = await format(source, options)
+
+            for (const plugins of [[padding], [padding, merge]]) {
+                for (const extra of [{}, { blockPaddingRules: [] }]) {
+                    const config = { ...options, ...extra, plugins }
+
+                    const output = await format(source, config)
+                    assert.equal(output, expected)
+                    assert.equal(await format(output, config), output)
+                }
+            }
+        })
+
         test(`merges declaration padding and comments with ${parser}`, async () => {
             const source =
                 parser === "babel"
